@@ -20,17 +20,19 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.river.eea_rdf.settings.EEASettings;
+import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
+
 
 /**
  *
- * @author iulia
- *
+ * @author EEA <br>
+ * Customized to accommodate requests from the University of Bergen Library.
+ * Hemed, 09-03-2015
  */
 public class Harvester implements Runnable {
 
@@ -69,7 +71,9 @@ public class Harvester implements Runnable {
 	private String syncConditions;
 	private String syncTimeProp;
 	private Boolean syncOldData;
-
+        private Boolean updateDocuments;
+        private long numberOfBulkActions;
+       
 	private Client client;
 	private String indexName;
 	private String typeName;
@@ -376,6 +380,27 @@ public class Harvester implements Runnable {
 		this.syncOldData = syncOldData;
 		return this;
 	}
+        
+         /**
+          * This flag is set if you want to update the documents instead of indexing.
+          * @param updateDocs
+          * @return 
+         **/
+        public Harvester rdfUpdateDocuments(Boolean updateDocs){
+            this.updateDocuments = updateDocs;
+            return this;
+        }
+              
+        /**
+       * @param bulkActions
+       * @return this object with numberOfBulkActions parameter set
+       **/
+        public Harvester rdfNumberOfBulkActions(long bulkActions)
+        {
+           this.numberOfBulkActions = bulkActions;
+           return this;
+        }
+        
 
 	public Harvester client(Client client) {
 		this.client = client;
@@ -445,10 +470,11 @@ public class Harvester implements Runnable {
 		if (success) {
 			setLastUpdate(new Date(currentTime));
 		}
-
-		client.admin().indices()
+                
+                
+		/**client.admin().indices()
 			  .prepareDeleteMapping("_river").setType(riverName)
-			  .execute().actionGet();
+			  .execute().actionGet();**/
 	}
 
 	public boolean runSync() {
@@ -602,6 +628,7 @@ public class Harvester implements Runnable {
 	/**
 	 * Starts a harvester with predefined queries to synchronize with the
 	 * changes from the SPARQL endpoint
+         * @return 
 	 */
 	public boolean sync() {
 		logger.info("Sync resources newer than {}", startTime);
@@ -670,7 +697,7 @@ public class Harvester implements Runnable {
 		for (String uri : rdfUrls) {
 			currentBulk.add(uri);
 
-			if (currentBulk.size() == EEASettings.DEFAULT_BULK_SIZE) {
+			if (currentBulk.size() == EEASettings.DEFAULT_BULK_REQ) {
 				bulks.add(currentBulk);
 				currentBulk = new ArrayList<String>();
 			}
@@ -725,6 +752,7 @@ public class Harvester implements Runnable {
 
 	/**
 	 * Starts the harvester for queries and/or URLs
+         * @return 
 	 */
 	public boolean runIndexAll() {
 		logger.info(
@@ -835,7 +863,7 @@ public class Harvester implements Runnable {
 	 * Add data to ES given a query execution service
 	 * @param qexec query execution service
 	 */
-	private void harvest(QueryExecution qexec) {
+	private void harvest(QueryExecution qexec) throws IOException {
 		boolean retry;
 		do {
 			retry = false;
@@ -1019,18 +1047,21 @@ public class Harvester implements Runnable {
 
 		return jsonMap;
 	}
-
-	/**
-	 * Index all the resources in a Jena Model to ES
-	 *
+	
+        /**
+	 * Index or update all the resources in a Jena Model to ES
+         * Note: Update works if the user has specified the flag "updateDocuments" to true in the river settings. 
+         * By default it is set to false. 
+         * By doing this, you can partial update the documents without full re-indexing.
 	 * @param model the model to index
 	 * @param bulkRequest a BulkRequestBuilder
 	 */
-	private void addModelToES(Model model, BulkRequestBuilder bulkRequest) {       
+	
+        private void addModelToES(Model model, BulkRequestBuilder bulkRequest) throws IOException {       
 		long startTime = System.currentTimeMillis();
 		long bulkLength = 0;
 		HashSet<Property> properties = new HashSet<Property>();
-            
+                
 		StmtIterator iter = model.listStatements();
 		while(iter.hasNext()) {
 			Statement st = iter.nextStatement();
@@ -1051,12 +1082,20 @@ public class Harvester implements Runnable {
 			Resource rs = rsiter.nextResource();
 			Map<String, ArrayList<String>> jsonMap = getJsonMap(rs, properties, model);
 
-			bulkRequest.add(client.prepareIndex(indexName, typeName, rs.toString())
-					.setSource(mapToString(jsonMap)));
-			bulkLength++;
+                        if(updateDocuments){
+                           //If updateDocuments is set to true, then prepare to update this document
+                           prepareUpdateDocument(bulkRequest, mapToString(jsonMap), rs.toString());
+                        }
+                        else{
+                           //Otherwise, prepare to index this document
+                           prepareIndexDocument(bulkRequest, mapToString(jsonMap), rs.toString()); 
+                        }
+                        
+                        bulkLength++;   
 
-			// We want to execute the bulk for every  DEFAULT_BULK_SIZE requests
-			if(bulkLength % EEASettings.DEFAULT_BULK_SIZE == 0) {
+			// We want to execute the bulk for every numberOfBulkActions requests
+			if(bulkLength % numberOfBulkActions == 0) {
+                            
 				BulkResponse bulkResponse = bulkRequest.execute().actionGet();
 				// After executing, flush the BulkRequestBuilder.
 				bulkRequest = client.prepareBulk();
@@ -1076,11 +1115,15 @@ public class Harvester implements Runnable {
 			}
                      
 		}
-
-        // Show time taken to index the documents
-		logger.info("Indexed {} documents on {}/{} in {} seconds",
-					bulkLength, indexName, typeName,
-					(System.currentTimeMillis() - startTime)/ 1000.0);
+                   //Show time taken to perfom the action 
+                   String actionPerformed =  updateDocuments == true? "update: " : "index: ";
+                   logger.info("\n==========================================="
+                              +"\n\tTotal documents proccessed: " + bulkLength
+                              + "\n\tIndex: " + indexName
+                              + "\n\tType: " + typeName
+                              + "\n\tTime taken to " + actionPerformed + (System.currentTimeMillis() - startTime)/1000.0 
+                              +" seconds"
+                              +"\n===========================================");
 	}
         
         
@@ -1092,7 +1135,6 @@ public class Harvester implements Runnable {
 		logger.warn("There was failures when executing bulk : " + response.buildFailureMessage());
 
 		if(!logger.isDebugEnabled()) return;
-
 		for(BulkItemResponse item: response.getItems()) {
 			if (item.isFailed()) {
 				logger.debug("Error {} occured on index {}, type {}, id {} for {} operation "
@@ -1101,6 +1143,31 @@ public class Harvester implements Runnable {
 			}
 		}
 	}
+        
+        
+         
+        /** Prepare update of a document in ElasticSearch. Given document ID, a document will be merged to the existing document
+         *  with this ID, if document does not exist, no update will be performed and the DocumentMissingException will be thrown.
+         *  
+         * This is useful if someone wants to update a partial document in ElasticSearch without full re-indexing.
+         * Hemed, 09-03-2015
+         **/
+        private void prepareUpdateDocument(BulkRequestBuilder bulkRequest , String documentToUpdate, String documentId){
+                               bulkRequest.add(client
+                                               .prepareUpdate(indexName, typeName, documentId)
+                                               //Merge this document to the existing one of the same Id.
+                                               .setDoc(documentToUpdate) );
+        }
+        
+        
+        /** 
+         * Prepare document to be bulk indexed in ElasticSearch 
+        **/
+        private void prepareIndexDocument(BulkRequestBuilder bulkRequest, String documentToIndex, String documentId){
+                         bulkRequest.add(client
+                                               .prepareIndex(indexName, typeName, documentId)
+                                               .setSource(documentToIndex));
+        }
 
 	/**
 	 * Converts a map of results to a String JSON representation for it
@@ -1192,11 +1259,7 @@ public class Harvester implements Runnable {
 	 * @return a String value, either a label for the parameter or its value
 	 * if no label is obtained from the endpoint
 	 */
-	private String getLabelForUri(String uri) {
-		String result;
-		if (uriLabelCache.containsKey(uri)) {
-			return uriLabelCache.get(uri);
-		}
+	private String getLabelForUri(String uri){
 		for(String prop:uriDescriptionList) {
 			String innerQuery = "SELECT ?r WHERE {<" + uri + "> <" +
 				prop + "> ?r } LIMIT 1";
@@ -1207,25 +1270,32 @@ public class Harvester implements Runnable {
 						rdfEndpoint,
 						query);
 				boolean keepTrying = true;
-				while(keepTrying) {
+                                int numberOfRetry = 0;
+                                
+                                //If the label is not available, retry querying the endpoint DEFAULT_NUMBER_OF_RETRY times, 
+                                //if no response, simply return resource URI instead of it's label.
+				while(keepTrying && numberOfRetry < EEASettings.DEFAULT_NUMBER_OF_RETRY) 
+                                {
 					keepTrying = false;
 					try {
 						ResultSet results = qexec.execSelect();
 
-						if(results.hasNext()) {
+						if(results.hasNext()) 
+                                                {
 							QuerySolution sol = results.nextSolution();
-							result = EEASettings.parseForJson(
+							String result = EEASettings.parseForJson(
 									sol.getLiteral("r").getLexicalForm());
-							if(!result.isEmpty()) {
-								uriLabelCache.put(uri, result);
+							if(!result.isEmpty())
 								return result;
-							}
 						}
-					} catch(Exception e) {
-						keepTrying = true;
-						logger.warn("Could not get label for uri {}. Retrying.",
-									uri);
-					} finally { qexec.close();}
+					} catch(Exception e){
+                                                keepTrying = true;
+                                                numberOfRetry++;
+						logger.warn("Could not get label for uri {}. Retrying..." , uri);
+                                                
+                                                //Print the stack trace
+                                                e.printStackTrace();
+				}finally { qexec.close();}
 				}
 			} catch (QueryParseException qpe) {
 				logger.error("Exception for query {}. The label cannot be obtained",

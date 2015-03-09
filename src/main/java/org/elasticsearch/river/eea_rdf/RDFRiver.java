@@ -19,8 +19,8 @@ import java.util.List;
 
 /**
  *
- * @author iulia
- *
+ * @author EEA
+ * Modified by Hemed 09-03-2015
  */
 public class RDFRiver extends AbstractRiverComponent implements River {
 	private volatile Harvester harvester;
@@ -79,6 +79,12 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 				.rdfEndpoint(XContentMapValues.nodeStringValue(
 						rdfSettings.get("endpoint"),
 						EEASettings.DEFAULT_ENDPOINT))
+                                .rdfNumberOfBulkActions(XContentMapValues.nodeLongValue(
+                                                rdfSettings.get("bulkActions"), 
+                                                EEASettings.DEFAULT_NUMBER_OF_BULK_ACTIONS))
+                                .rdfUpdateDocuments(XContentMapValues.nodeBooleanValue(
+                                                rdfSettings.get("updateDocuments"),
+                                                EEASettings.DEFAULT_UPDATE_DOCUMENTS))
 				.rdfQueryType(XContentMapValues.nodeStringValue(
 						rdfSettings.get("queryType"),
 						EEASettings.DEFAULT_QUERYTYPE))
@@ -158,6 +164,8 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 	public void close() {
 		harvester.log("Closing EEA RDF river [" + riverName.name() + "]");
 		harvester.setClose(true);
-		harvesterThread.interrupt();
+                
+                if(harvesterThread != null)
+		    harvesterThread.interrupt();
 	}
 }
