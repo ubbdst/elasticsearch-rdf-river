@@ -4,10 +4,13 @@ EEA ElasticSearch RDF River Plugin
 
 Introduction
 ============
-
-The EEA RDF River Plugin for ElasticSearch allows to harvest metadata from
+This River Plugin for ElasticSearch allows to harvest metadata from
 SPARQL endpoints or plain RDF files into ElasticSearch. It is provided as a
 plugin.
+
+The original RDF River Plugin is available from https://github.com/eea/eea.elasticsearch.river.rdf
+
+This version is modified to meet the University of Bergen Library requirements. 
 
 
 .. contents::
@@ -19,11 +22,11 @@ Prerequisites:
 
 * ElasticSearch 0.90.2 or later
 
-* Java 7 Runtime Environment
+* Java 7 Runtime Environment or later
 
 Binaries for this plugin are available at:
 
-https://github.com/eea/eea.elasticsearch.river.rdf/releases
+https://github.com/ubbdst/elasticsearch-river/releases
 
 In order to install the plugin, you first need to have
 `Elasticsearch <http://www.elasticsearch.org/download/>`_ installed. Just
@@ -139,6 +142,7 @@ CONSTRUCT queries are more simple.
 DESCRIBE queries can be written as such:
 
 ::
+
  curl -XPUT 'localhost:9200/_river/rdf_river/_meta' -d '{
    "type" : "eeaRDF",
    "eeaRDF" : {
@@ -175,6 +179,35 @@ from a SPARQL endpoint and several unrelated URIs.
    }
  }'
 
+Updating
+===========
+You can update a partial document to ElasticSearch without full re-indexing. 
+Given a document ID, document will be merged to the existing document with this ID, if original document does not exist, no update will be performed and the DocumentMissingException will be thrown.
+
+This is useful if you want to update only part of the document. For example by adding a new field to the existing document.
+
+Updating a document can simply be done by setting the flag updateDocuments to true in the river settings.
+
+Please see below:-
+
+::
+
+ curl -XPUT 'localhost:9200/_river/rdf_river/_meta' -d '{
+   "type" : "eeaRDF",
+   "eeaRDF" : {
+      "updateDocuments" : true,
+      "endpoint" : "http://semantic.eea.europa.eu/sparql",
+      "query" : ["PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> PREFIX cr: <http://cr.eionet.europa.eu/ontologies/contreg.rdf#> SELECT ?s ?p ?o WHERE { ?s a cr:SparqlBookmark ; ?p ?o}"],
+      "queryType" : "select"
+   }
+ }'
+ 
+ By setting the flag updateDocuments to true in the river settings, 
+ you are telling the river to query and then merge the documents to the existing one based on the ID.
+
+
+
+
 
 Other options
 =============
@@ -204,6 +237,25 @@ The default value for "includeResourceURI" is true.
       "includeResourceURI" : false
    }
  }'
+ 
+Bulk Actions
+++++++++++++
+
+River index data to ElasticSearch in bulk, you can set this bulk size depending on your dataset and resources.
+By default, bulk size is set to 100.  
+ 
+You can set the bulk size in the river settings as follows:-
+ 
+::
+
+  curl -XPUT 'localhost:9200/_river/rdf_river/_meta' -d '{
+   "type" : "eeaRDF",
+   "eeaRDF" : {
+    "bulkActions" : 10000
+   }
+ }'
+ 
+ Note that the key "bulkActions" holds long value.
 
 language and addLanguage 
 ++++++++++++++++++++++++
@@ -282,6 +334,7 @@ can be rewritten as:
  
 This optimization ensures that the query will return Literals which are indexed faster than Resources.
 
+
 Blacklists and whitelists
 =========================
 
@@ -306,7 +359,7 @@ The following query indexes only the rdf:type property of the resources.
       "listtype" : "white"
    }
  }'
-
+ 
 BlackMap
 ========
 
@@ -346,7 +399,6 @@ all the pairs property - list of objects that are meant to be indexed.
    }
  }'
  
-
 Normalization
 =============
 
@@ -507,7 +559,9 @@ that no longer match the conditions are deleted.
       "syncOldData": true
    }
  }'
+ 
 
+ 
 Scheduling the harvest
 ======================
 
