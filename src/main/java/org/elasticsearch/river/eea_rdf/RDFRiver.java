@@ -20,7 +20,7 @@ import java.util.List;
 /**
  *
  * @author EEA
- * Modified by Hemed 09-03-2015
+ * Modified by Hemed, University of Bergen Library 09-03-2015
  */
 public class RDFRiver extends AbstractRiverComponent implements River {
 	private volatile Harvester harvester;

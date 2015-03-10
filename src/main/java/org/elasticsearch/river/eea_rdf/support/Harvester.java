@@ -31,7 +31,7 @@ import java.util.*;
 /**
  *
  * @author EEA <br>
- * Customized to accommodate requests from the University of Bergen Library.
+ * Customized to accommodate requests from the University of Bergen Library.<br>
  * Hemed, 09-03-2015
  */
 public class Harvester implements Runnable {
@@ -1050,8 +1050,7 @@ public class Harvester implements Runnable {
 	
         /**
 	 * Index or update all the resources in a Jena Model to ES
-         * Note: Update works if the user has specified the flag "updateDocuments" to true in the river settings. 
-         * By default it is set to false. 
+         * Note: Update works if the user has specified the flag "updateDocuments" to true in the river settings. It is set to false by default. 
          * By doing this, you can partial update the documents without full re-indexing.
 	 * @param model the model to index
 	 * @param bulkRequest a BulkRequestBuilder
@@ -1081,9 +1080,9 @@ public class Harvester implements Runnable {
 		while(rsiter.hasNext()) {
 			Resource rs = rsiter.nextResource();
 			Map<String, ArrayList<String>> jsonMap = getJsonMap(rs, properties, model);
-
+                        
+                        //If updateDocuments is set to true, then prepare to update this document
                         if(updateDocuments){
-                           //If updateDocuments is set to true, then prepare to update this document
                            prepareUpdateDocument(bulkRequest, mapToString(jsonMap), rs.toString());
                         }
                         else{
@@ -1097,7 +1096,7 @@ public class Harvester implements Runnable {
 			if(bulkLength % numberOfBulkActions == 0) {
                             
 				BulkResponse bulkResponse = bulkRequest.execute().actionGet();
-				// After executing, flush the BulkRequestBuilder.
+				// After executing, clear the BulkRequestBuilder.
 				bulkRequest = client.prepareBulk();
 
 				if (bulkResponse.hasFailures()) {
@@ -1115,7 +1114,7 @@ public class Harvester implements Runnable {
 			}
                      
 		}
-                   //Show time taken to perfom the action 
+                  //Show time taken to perfom the action 
                    String actionPerformed =  updateDocuments == true? "update: " : "index: ";
                    logger.info("\n==========================================="
                               +"\n\tTotal documents proccessed: " + bulkLength
@@ -1146,8 +1145,8 @@ public class Harvester implements Runnable {
         
         
          
-        /** Prepare update of a document in ElasticSearch. Given document ID, a document will be merged to the existing document
-         *  with this ID, if document does not exist, no update will be performed and the DocumentMissingException will be thrown.
+        /** Prepare update of a document in ElasticSearch. Given a document ID, document will be merged to the existing document
+         *  with this ID, if original document does not exist, no update will be performed and the DocumentMissingException will be thrown.<b>
          *  
          * This is useful if someone wants to update a partial document in ElasticSearch without full re-indexing.
          * Hemed, 09-03-2015
