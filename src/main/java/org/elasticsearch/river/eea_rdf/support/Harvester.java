@@ -32,7 +32,7 @@ import java.util.*;
  *
  * @author EEA <br>
  * Customized to accommodate requests from the University of Bergen Library.<br>
- * Hemed, 09-03-2015
+ * Hemed Ali, 09-03-2015
  */
 public class Harvester implements Runnable {
 
@@ -316,13 +316,29 @@ public class Harvester implements Runnable {
 	 * @Observation If the list is not empty, the {@link #toDescribeURIs}
 	 * property is set to true
 	 */
-	public Harvester rdfURIDescription(String uriList) {
-		uriList = uriList.substring(1, uriList.length() - 1);
+	/**public Harvester rdfURIDescription(String uriList) {
+	       uriList = uriList.substring(1, uriList.length() - 1);
 		if(!uriList.isEmpty())
 			toDescribeURIs = true;
 		uriDescriptionList = Arrays.asList(uriList.split(","));
 		return this;
+	}**/
+        
+
+     /**
+     * @param uriList
+     * @return 
+     */
+    public Harvester rdfURIDescription(List<String> uriList) {
+		if(!uriList.isEmpty()){
+	          toDescribeURIs = true;
+		  uriDescriptionList = new ArrayList<>(uriList);
+                }   
+		return this;
 	}
+        
+        
+        
 
 	/**
 	 * Sets the {@link Harvester}'s {@link #uriDescriptionList} parameter.
@@ -1073,6 +1089,8 @@ public class Harvester implements Runnable {
 				|| (willNormalizeProp && normalizeProp.containsKey(property))) {
 				properties.add(prop);
 			}
+                        //Print out the property that is ignored.
+                        //else {logger.info("Ignoring Property: " + prop);}
 		}
 
 		ResIterator rsiter = model.listSubjects();
@@ -1117,7 +1135,7 @@ public class Harvester implements Runnable {
                   //Show time taken to perfom the action 
                    String actionPerformed =  updateDocuments == true? "update: " : "index: ";
                    logger.info("\n==========================================="
-                              +"\n\tTotal documents proccessed: " + bulkLength
+                              +"\n\tTotal documents processed: " + bulkLength
                               + "\n\tIndex: " + indexName
                               + "\n\tType: " + typeName
                               + "\n\tTime taken to " + actionPerformed + (System.currentTimeMillis() - startTime)/1000.0 
@@ -1259,48 +1277,79 @@ public class Harvester implements Runnable {
 	 * if no label is obtained from the endpoint
 	 */
 	private String getLabelForUri(String uri){
-		for(String prop:uriDescriptionList) {
-			String innerQuery = "SELECT ?r WHERE {<" + uri + "> <" +
-				prop + "> ?r } LIMIT 1";
-
+                       String innerQuery  = getInnerQueryForLabel(uri);
 			try {
 				Query query = QueryFactory.create(innerQuery);
-				QueryExecution qexec = QueryExecutionFactory.sparqlService(
-						rdfEndpoint,
-						query);
-				boolean keepTrying = true;
-                                int numberOfRetry = 0;
+				QueryExecution qexec = QueryExecutionFactory.sparqlService(rdfEndpoint, query);
                                 
-                                //If the label is not available, retry querying the endpoint DEFAULT_NUMBER_OF_RETRY times, 
-                                //if no response, simply return resource URI instead of it's label.
-				while(keepTrying && numberOfRetry < EEASettings.DEFAULT_NUMBER_OF_RETRY) 
-                                {
-					keepTrying = false;
 					try {
-						ResultSet results = qexec.execSelect();
-
-						if(results.hasNext()) 
-                                                {
+					     ResultSet results = qexec.execSelect();
+						if(results.hasNext()) {
 							QuerySolution sol = results.nextSolution();
 							String result = EEASettings.parseForJson(
-									sol.getLiteral("r").getLexicalForm());
-							if(!result.isEmpty())
-								return result;
+									sol.getLiteral("label").getLexicalForm());
+                                                        
+							if(!result.isEmpty()){
+                                                           qexec.close();
+					                   return result;
+                                                        }
+                                                   
 						}
 					} catch(Exception e){
-                                                keepTrying = true;
-                                                numberOfRetry++;
-						logger.warn("Could not get label for uri {}. Retrying..." , uri);
+						logger.warn("Could not get label for uri {} with query {} " , uri , innerQuery);
                                                 
-                                                //Print the stack trace
-                                                e.printStackTrace();
-				}finally { qexec.close();}
-				}
-			} catch (QueryParseException qpe) {
-				logger.error("Exception for query {}. The label cannot be obtained",
-							 innerQuery);
+                                               //Print the message
+                                                e.getLocalizedMessage();
+				            }
+                                 finally { qexec.close();}
+			} 
+                        catch (QueryParseException qpe) {
+				logger.error("Exception for query {}. "
+                                            + "Please check your SPARQL query syntax. The label cannot be obtained. " , innerQuery);
 			}
-		}
 		return uri;
 	}
+        
+        
+           /**
+           * A method to build up the query based on the uriDescriptionList. The query will be used
+           * to fetch label from the resources. Hemed, 26-05-2015 
+           * @param uri
+           * @since 26-05-15
+           * At the end, we need an inner query like the following:-
+           *String innerQuery = "SELECT ?label "
+                              + "WHERE { GRAPH ?G { "
+                              + "OPTIONAL { <" + uri + "> " + "<http://www.w3.org/2000/01/rdf-schema#label> ?rdfLabel } "
+                              + "OPTIONAL { <" + uri + "> " + "<http://xmlns.com/foaf/0.1/name> ?foafName } "
+                              + "OPTIONAL { <" + uri + "> " + "<http://www.w3.org/2004/02/skos/core#prefLabel> ?prefLabel } "
+                              + "BIND(COALESCE(?foafName,?rdfLabel,?prefLabel) AS ?label) " + "}} "
+           * 
+           **/
+            private String getInnerQueryForLabel(String uri){
+               
+            String options = "";
+            String bind = "";
+            int count = 0;
+            String labelCoalesce = "";
+            
+            //This is too specific to the University of Bergen Library Ontology.
+            //In the future, you might want to let the default language be autmatically picked up.
+            String filter =  "FILTER (langMatches(lang(?label), \"\") || langMatches(lang(?label), \"no\")) ";
+                
+                  //Iterate over the list and build up the options.
+                   for(String property : uriDescriptionList) {
+                           String label = "?label" + count++;
+                           options +=  "OPTIONAL { <" + uri + "> " + "<" + property + "> " + label + " } ";
+                           labelCoalesce += label + "," ;
+                     }
+                     //Build up coalesce string, this function checks the label for the first occurance in sequencial order,
+                     //and if the label was not found, it checks for the next one.
+                      bind += "BIND(COALESCE(" + labelCoalesce.substring(0 , labelCoalesce.length()-1) + ") AS ?label) ";
+                      
+                      //Build up the final query to fetch the corresponding label.
+                      String innerQuery = "SELECT ?label "
+                                         + "WHERE { GRAPH ?G { "  + options + bind + "} " + filter + "} "  +  "LIMIT 1";
+            return innerQuery;
+           }
+        
 }

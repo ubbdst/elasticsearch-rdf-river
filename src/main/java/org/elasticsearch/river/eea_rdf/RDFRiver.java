@@ -1,5 +1,6 @@
 package org.elasticsearch.river.eea_rdf;
 
+import java.util.Arrays;
 import org.elasticsearch.client.Client;
 
 import org.elasticsearch.common.inject.Inject;
@@ -20,7 +21,9 @@ import java.util.List;
 /**
  *
  * @author EEA
- * Modified by Hemed, University of Bergen Library 09-03-2015
+ * <br>
+ * Modified by Hemed Ali, The University of Bergen Library 
+ * @since 09-03-2015
  */
 public class RDFRiver extends AbstractRiverComponent implements River {
 	private volatile Harvester harvester;
@@ -57,18 +60,17 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 	}
 
 	@SuppressWarnings("unchecked")
-	private static List<String> getStrListFromSettings(Map<String, Object> settings,
-													   String key) {
+	private static List<String> getStrListFromSettings(Map<String, Object> settings, String key) {
 		return (List<String>)settings.get(key);
 	}
 
 	private void addHarvesterSettings(RiverSettings settings) {
-		if (!settings.settings().containsKey("eeaRDF")) {
+		if (!settings.settings().containsKey(EEASettings.RIVER_SETTINGS_KEY)) {
 			throw new IllegalArgumentException(
-					"There are no eeaRDF settings in the river settings");
+                                String.format("There is no %s key in the river settings" , EEASettings.RIVER_SETTINGS_KEY));
 		}
 
-		Map<String, Object> rdfSettings = extractSettings(settings, "eeaRDF");
+		Map<String, Object> rdfSettings = extractSettings(settings, EEASettings.RIVER_SETTINGS_KEY);
 
 		harvester.rdfIndexType(XContentMapValues.nodeStringValue(
 				rdfSettings.get("indexType"), "full"))
@@ -100,9 +102,9 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 				.rdfAddUriForResource(XContentMapValues.nodeBooleanValue(
 						rdfSettings.get("includeResourceURI"),
 						EEASettings.DEFAULT_ADD_URI))
-				.rdfURIDescription(XContentMapValues.nodeStringValue(
+				/**.rdfURIDescription(XContentMapValues.nodeStringValue(
 						rdfSettings.get("uriDescription"),
-						EEASettings.DEFAULT_URI_DESCRIPTION))
+						EEASettings.DEFAULT_URI_DESCRIPTION))**/
 				.rdfSyncConditions(XContentMapValues.nodeStringValue(
 						rdfSettings.get("syncConditions"),
 						EEASettings.DEFAULT_SYNC_COND))
@@ -112,16 +114,24 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 				.rdfSyncOldData(XContentMapValues.nodeBooleanValue(
 						rdfSettings.get("syncOldData"),
 						EEASettings.DEFAULT_SYNC_OLD_DATA));
-
+                
+                if (rdfSettings.containsKey("uriDescription")) {
+			harvester.rdfURIDescription(getStrListFromSettings(rdfSettings, "uriDescription"));
+		}
+                else{
+                  //Convert the default array to List
+                   List<String> defaultUriList = Arrays.asList(EEASettings.DEFAULT_URI_DESCRIPTION);
+                   harvester.rdfURIDescription(defaultUriList);
+                }
 		if (rdfSettings.containsKey("proplist")) {
 			harvester.rdfPropList(getStrListFromSettings(rdfSettings, "proplist"));
 		}
 		if(rdfSettings.containsKey("query")) {
 			harvester.rdfQuery(getStrListFromSettings(rdfSettings, "query"));
-		} else {
+		} 
+                else {
 			harvester.rdfQuery(EEASettings.DEFAULT_QUERIES);
 		}
-
 		if(rdfSettings.containsKey("normProp")) {
 			harvester.rdfNormalizationProp(getStrStrMapFromSettings(rdfSettings, "normProp"));
 		}
