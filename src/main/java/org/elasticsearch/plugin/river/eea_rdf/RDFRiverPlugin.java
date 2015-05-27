@@ -4,6 +4,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.river.RiversModule;
 import org.elasticsearch.river.eea_rdf.RDFRiverModule;
+import org.elasticsearch.river.eea_rdf.settings.EEASettings;
 
 /**
  *
@@ -25,7 +26,7 @@ public class RDFRiverPlugin extends AbstractPlugin {
 	}
 
 	public void onModule(RiversModule module) {
-		module.registerRiver("eeaRDF", RDFRiverModule.class);
+		module.registerRiver(EEASettings.RIVER_SETTINGS_KEY, RDFRiverModule.class);
 	}
 }
 
