@@ -7,6 +7,7 @@ import com.hp.hpl.jena.graph.Triple;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.*;
 import com.hp.hpl.jena.sparql.engine.http.QueryExceptionHTTP;
+import com.hp.hpl.jena.tdb.TDBFactory;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RiotException;
@@ -26,10 +27,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-
-
 /**
- *
  * @author EEA <br>
  * Customized to accommodate requests from the University of Bergen Library.<br>
  * Hemed Ali, 09-03-2015
@@ -48,6 +46,7 @@ public class Harvester implements Runnable {
 	private String startTime;
 	private Set<String> rdfUrls;
 	private String rdfEndpoint;
+        private String tdbLocation;
 	private List<String> rdfQueries;
 	private QueryType rdfQueryType;
 	private List<String> rdfPropList;
@@ -83,11 +82,11 @@ public class Harvester implements Runnable {
 
 	private HashMap<String, String> uriLabelCache;
 
-	/**
- 	 * Sets the {@link Harvester}'s {@link #rdfUrls} parameter
- 	 * @param url - a list of urls
- 	 * @return the {@link Harvester} with the {@link #rdfUrls} parameter set
- 	 */
+        /**
+         * Sets the {@link Harvester}'s {@link #rdfUrls} parameter
+         * @param url - a list of urls
+         * @return the {@link Harvester} with the {@link #rdfUrls} parameter set
+         */
 	public Harvester rdfUrl(String url) {
 		url = url.substring(1, url.length() - 1);
 		uriLabelCache = new HashMap<String, String>();
@@ -105,7 +104,17 @@ public class Harvester implements Runnable {
 		rdfEndpoint = endpoint;
 		return this;
 	}
-
+        
+       /**
+	* Sets the {@link Harvester}'s {@link #tdbLocation} parameter
+        * @param pathToTDB
+	* @return the same {@link Harvester} with the {@link #tdbLocation} set
+	*/
+	public Harvester rdfTDBLocation(String pathToTDB) {
+		tdbLocation = pathToTDB;
+		return this;
+	}
+        
 	/**
 	 * Sets the {@link Harvester}'s {@link #rdfQueries} parameter
 	 * @param query - new list of queries
@@ -316,6 +325,15 @@ public class Harvester implements Runnable {
 	 * @Observation If the list is not empty, the {@link #toDescribeURIs}
 	 * property is set to true
 	 */
+        
+         public Harvester rdfURIDescription(List<String> uriList) {
+		if(!uriList.isEmpty()){
+	          toDescribeURIs = true;
+		  uriDescriptionList = new ArrayList<String>(uriList);
+                }   
+		return this;
+	}
+         
 	/**public Harvester rdfURIDescription(String uriList) {
 	       uriList = uriList.substring(1, uriList.length() - 1);
 		if(!uriList.isEmpty())
@@ -324,22 +342,8 @@ public class Harvester implements Runnable {
 		return this;
 	}**/
         
-
-     /**
-     * @param uriList
-     * @return 
-     */
-    public Harvester rdfURIDescription(List<String> uriList) {
-		if(!uriList.isEmpty()){
-	          toDescribeURIs = true;
-		  uriDescriptionList = new ArrayList<>(uriList);
-                }   
-		return this;
-	}
         
-        
-        
-
+       
 	/**
 	 * Sets the {@link Harvester}'s {@link #uriDescriptionList} parameter.
 	 * When it is set to true  a new property is added to each resource:
@@ -407,7 +411,7 @@ public class Harvester implements Runnable {
             return this;
         }
               
-        /**
+       /**
        * @param bulkActions
        * @return this object with numberOfBulkActions parameter set
        **/
@@ -474,6 +478,7 @@ public class Harvester implements Runnable {
 	}
 
 
+        @Override
 	public void run() {
 		long currentTime = System.currentTimeMillis();
 		boolean success;
@@ -486,11 +491,12 @@ public class Harvester implements Runnable {
 		if (success) {
 			setLastUpdate(new Date(currentTime));
 		}
-                
-                
-		/**client.admin().indices()
+                       
+		/**
+                 * client.admin().indices()
 			  .prepareDeleteMapping("_river").setType(riverName)
-			  .execute().actionGet();**/
+			  .execute().actionGet();
+                **/
 	}
 
 	public boolean runSync() {
@@ -772,23 +778,30 @@ public class Harvester implements Runnable {
 	 */
 	public boolean runIndexAll() {
 		logger.info(
-				"Starting RDF harvester: endpoint [{}], queries [{}]," +
+				"Starting RDF harvester: endpoint [{}], TDB [{}] queries [{}]," +
 				"URLs [{}], index name [{}], typeName [{}]",
- 				rdfEndpoint, rdfQueries, rdfUrls, indexName, typeName);
+ 				rdfEndpoint, tdbLocation, rdfQueries, rdfUrls, indexName, typeName);
 
 		while (true) {
 			if(this.closed){
-				logger.info("Ended harvest for endpoint [{}], queries [{}]," +
-						"URLs [{}], index name {}, type name {}",
-						rdfEndpoint, rdfQueries, rdfUrls, indexName, typeName);
+				logger.info("Ended harvest for endpoint [{}], TDB [{}]  queries [{}]," +
+						"URLs [{}], index name [{}], type name [{}]",
+						rdfEndpoint, tdbLocation, rdfQueries, rdfUrls, indexName, typeName);
 				return true;
 			}
 
 			/**
 			 * Harvest from a SPARQL endpoint
 			 */
-			if(!rdfQueries.isEmpty()) {
+			if(!rdfQueries.isEmpty() && !rdfEndpoint.trim().isEmpty()) {
 				harvestFromEndpoint();
+			}
+                        
+                       	/**
+			 * Harvest from TDB
+			 */
+			if(!rdfQueries.isEmpty() && !tdbLocation.trim().isEmpty()) {
+				harvestFromTDB();
 			}
 
 			/**
@@ -933,10 +946,48 @@ public class Harvester implements Runnable {
 			}
 		}
 	}
+        
+         /**
+	 * Harvest from TDB using queries specified from {@link #rdfQueries} list.
+	 */
+	private void harvestFromTDB(){
+
+		Query query;
+		QueryExecution qexec;
+                Dataset dataset;
+
+		for (String rdfQuery : rdfQueries) {
+			logger.info(
+				"Harvesting from TDB [{}] with query: [{}] on index [{}] and type [{}]",
+ 				tdbLocation, rdfQuery, indexName, typeName);
+
+			try {
+				query = QueryFactory.create(rdfQuery);
+			} catch (QueryParseException qpe) {
+				logger.error(
+						"Could not parse [{}]. Please provide a relevant query. {}",
+						rdfQuery, qpe);
+				continue;
+			}
+                        
+                        dataset = TDBFactory.createDataset(tdbLocation);
+			qexec = QueryExecutionFactory.create(query, dataset);
+
+			try {
+			        Model model = getModel(qexec);
+				addModelToES(model, client.prepareBulk());
+			} catch (Exception e) {
+				logger.error("Exception [{}] occured while harvesting",
+							 e.getLocalizedMessage());
+			} finally {
+				qexec.close();
+			}
+		}
+	}
 
 	/**
-	 * Harvests all the triplets from each URI in the @rdfUrls list
-	 */
+	* Harvests all the triplets from each URI in the @rdfUrls list
+	*/
 	private void harvestFromDumps() {
 		for(String url:rdfUrls) {
 			if(url.isEmpty()) continue;
@@ -1250,7 +1301,7 @@ public class Harvester implements Runnable {
 		} else if(node.isResource()) {
 			result = node.asResource().getURI();
 			if(toDescribeURIs) {
-				result = getLabelForUri(result);
+				result = getLabelForUriFromTDB(result);
 			}
 			quote = true;
 		}
@@ -1276,7 +1327,7 @@ public class Harvester implements Runnable {
 	 * @return a String value, either a label for the parameter or its value
 	 * if no label is obtained from the endpoint
 	 */
-	private String getLabelForUri(String uri){
+	private String getLabelForUriFromEndpoint(String uri){
                        String innerQuery  = getInnerQueryForLabel(uri);
 			try {
 				Query query = QueryFactory.create(innerQuery);
@@ -1310,6 +1361,45 @@ public class Harvester implements Runnable {
 		return uri;
 	}
         
+        /**
+         * This method tries to get labels by querying a TDB store instead of SPARQL Endpoint. Using TDB to get labels is efficient
+         * in the sense that you are capable of doing a lot of queries within a second without getting HTTP Exceptions.
+         * Hemed Ali, 28-05-2015
+         * 
+         * @param uri - the URI for which a label is required
+	 * @return a String value, either a label for the parameter or its value
+	 * if no label is obtained from the endpoint, the URI is returned.
+        **/
+        private String getLabelForUriFromTDB(String uri){
+                       String innerQuery  = getInnerQueryForLabel(uri);
+			try {
+				Query query = QueryFactory.create(innerQuery);
+                                Dataset dataset = TDBFactory.createDataset(tdbLocation);
+				QueryExecution qexec = QueryExecutionFactory.create(query, dataset);
+					try {
+					     ResultSet results = qexec.execSelect();
+						if(results.hasNext()) {
+							QuerySolution sol = results.nextSolution();
+							String result = EEASettings.parseForJson(
+									sol.getLiteral("label").getLexicalForm());
+							if(!result.isEmpty()){
+                                                           qexec.close();
+					                   return result;
+                                                        }                                           
+						}
+					} catch(Exception e){
+						logger.warn("Could not get label for uri [{}] with query [{}] " , uri , innerQuery);
+                                                e.getLocalizedMessage();
+				            }
+                                 finally { qexec.close();}
+			} 
+                        catch (QueryParseException qpe) {
+				logger.error("Exception for query [{}]. "
+                                            + "Please check your SPARQL query syntax. "
+                                            + "The label cannot be obtained. " , innerQuery);
+			}
+		return uri;
+	}  
         
            /**
            * A method to build up the query based on the uriDescriptionList. The query will be used
@@ -1332,7 +1422,7 @@ public class Harvester implements Runnable {
             int count = 0;
             String labelCoalesce = "";
             
-            //This is too specific to the University of Bergen Library Ontology.
+            //This is too specific to the University of Bergen Library´s Ontology.
             //In the future, you might want to let the default language be autmatically picked up.
             String filter =  "FILTER (langMatches(lang(?label), \"\") || langMatches(lang(?label), \"no\")) ";
                 

@@ -67,7 +67,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 	private void addHarvesterSettings(RiverSettings settings) {
 		if (!settings.settings().containsKey(EEASettings.RIVER_SETTINGS_KEY)) {
 			throw new IllegalArgumentException(
-                                String.format("There is no %s key in the river settings" , EEASettings.RIVER_SETTINGS_KEY));
+                                String.format("There is no \"%s\" key in the river settings." , EEASettings.RIVER_SETTINGS_KEY));
 		}
 
 		Map<String, Object> rdfSettings = extractSettings(settings, EEASettings.RIVER_SETTINGS_KEY);
@@ -79,8 +79,9 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 				.rdfUrl(XContentMapValues.nodeStringValue(
 						rdfSettings.get("uris"), "[]"))
 				.rdfEndpoint(XContentMapValues.nodeStringValue(
-						rdfSettings.get("endpoint"),
-						EEASettings.DEFAULT_ENDPOINT))
+						rdfSettings.get("endpoint"), ""))
+                                .rdfTDBLocation(XContentMapValues.nodeStringValue(
+						rdfSettings.get("tdbLocation"), ""))
                                 .rdfNumberOfBulkActions(XContentMapValues.nodeLongValue(
                                                 rdfSettings.get("bulkActions"), 
                                                 EEASettings.DEFAULT_NUMBER_OF_BULK_ACTIONS))
@@ -104,7 +105,8 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 						EEASettings.DEFAULT_ADD_URI))
 				/**.rdfURIDescription(XContentMapValues.nodeStringValue(
 						rdfSettings.get("uriDescription"),
-						EEASettings.DEFAULT_URI_DESCRIPTION))**/
+						EEASettings.DEFAULT_URI_DESCRIPTION))
+                                **/
 				.rdfSyncConditions(XContentMapValues.nodeStringValue(
 						rdfSettings.get("syncConditions"),
 						EEASettings.DEFAULT_SYNC_COND))
@@ -163,6 +165,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 		}
 	}
 	
+        @Override
 	public void start() {
 		harvesterThread = EsExecutors.daemonThreadFactory(
 				settings.globalSettings(),
@@ -171,6 +174,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 		harvesterThread.start();
 	}
 
+        @Override
 	public void close() {
 		harvester.log("Closing EEA RDF river [" + riverName.name() + "]");
 		harvester.setClose(true);
