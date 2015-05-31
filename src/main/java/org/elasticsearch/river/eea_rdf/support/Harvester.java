@@ -81,6 +81,7 @@ public class Harvester implements Runnable {
 	private Boolean closed = false;
 
 	private HashMap<String, String> uriLabelCache;
+        private Dataset tdbDataset = null;
 
         /**
          * Sets the {@link Harvester}'s {@link #rdfUrls} parameter
@@ -104,6 +105,21 @@ public class Harvester implements Runnable {
 		rdfEndpoint = endpoint;
 		return this;
 	}
+        
+        /** Getter for Dataset
+        * @return a RDF dataset
+        **/
+        public  Dataset getTDBDataset(){
+            return tdbDataset;
+        }
+        
+        /**Setter for TDB dataset
+         * @param ds, a RDF dataset
+         **/
+        public void setTDBDataset(Dataset ds){
+         if(ds != null)
+             this.tdbDataset = ds;
+        }
         
        /**
 	* Sets the {@link Harvester}'s {@link #tdbLocation} parameter
@@ -969,8 +985,16 @@ public class Harvester implements Runnable {
 						rdfQuery, qpe);
 				continue;
 			}
-                        
+                        //Create a dataset object
                         dataset = TDBFactory.createDataset(tdbLocation);
+                        
+                        //Use this dataset throughout
+                        this.setTDBDataset(dataset);
+                        
+                        //Begin READ transaction
+                        dataset.begin(ReadWrite.READ);
+                        
+                        //Execute SPARQL queries
 			qexec = QueryExecutionFactory.create(query, dataset);
 
 			try {
@@ -981,6 +1005,7 @@ public class Harvester implements Runnable {
 							 e.getLocalizedMessage());
 			} finally {
 				qexec.close();
+                                dataset.end();
 			}
 		}
 	}
@@ -1374,8 +1399,7 @@ public class Harvester implements Runnable {
                        String innerQuery  = getInnerQueryForLabel(uri);
 			try {
 				Query query = QueryFactory.create(innerQuery);
-                                Dataset dataset = TDBFactory.createDataset(tdbLocation);
-				QueryExecution qexec = QueryExecutionFactory.create(query, dataset);
+				QueryExecution qexec = QueryExecutionFactory.create(query, this.getTDBDataset());
 					try {
 					     ResultSet results = qexec.execSelect();
 						if(results.hasNext()) {
