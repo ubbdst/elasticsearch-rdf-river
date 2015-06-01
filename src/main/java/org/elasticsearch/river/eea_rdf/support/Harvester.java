@@ -7,6 +7,7 @@ import com.hp.hpl.jena.graph.Triple;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.*;
 import com.hp.hpl.jena.sparql.engine.http.QueryExceptionHTTP;
+import com.hp.hpl.jena.tdb.TDBFactory;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RiotException;
@@ -23,8 +24,13 @@ import org.elasticsearch.river.eea_rdf.settings.EEASettings;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.net.SocketFactory;
 
 
 
@@ -920,6 +926,8 @@ public class Harvester implements Runnable {
 						rdfQuery, qpe);
 				continue;
 			}
+                        //Dataset dataset = TDBFactory.createDataset("D:\\marcus-admin-tdb");
+                        //qexec = QueryExecutionFactory.create(query, dataset); 
 
 			qexec = QueryExecutionFactory.sparqlService(rdfEndpoint, query);
 
@@ -1276,13 +1284,15 @@ public class Harvester implements Runnable {
 	 * @return a String value, either a label for the parameter or its value
 	 * if no label is obtained from the endpoint
 	 */
-	private String getLabelForUri(String uri){
+	private String getLabelForUri(String uri){            
                        String innerQuery  = getInnerQueryForLabel(uri);
-			try {
-				Query query = QueryFactory.create(innerQuery);
-				QueryExecution qexec = QueryExecutionFactory.sparqlService(rdfEndpoint, query);
-                                
-					try {
+			try { 
+                                Dataset dataset = TDBFactory.createDataset("D:\\marcus-admin-tdb");
+                                //Model defaultModel = dataset.getDefaultModel();
+                                Query query = QueryFactory.create(innerQuery);
+                                QueryExecution qexec = QueryExecutionFactory.create(query, dataset);  
+                                //QueryExecution qexec = QueryExecutionFactory.sparqlService("http://marcus.uib.no/sparql/marcus-prod/sparql" , query);
+                                     try{
 					     ResultSet results = qexec.execSelect();
 						if(results.hasNext()) {
 							QuerySolution sol = results.nextSolution();
@@ -1291,20 +1301,21 @@ public class Harvester implements Runnable {
                                                         
 							if(!result.isEmpty()){
                                                            qexec.close();
+                                                           //logger.info("The label [{}] found. ", result);
 					                   return result;
                                                         }
                                                    
 						}
-					} catch(Exception e){
-						logger.warn("Could not get label for uri {} with query {} " , uri , innerQuery);
-                                                
+					} 
+                                     catch(Exception ex){     
+				           logger.warn("Could not get label for uri [{}] with query [ {} ] " , uri , innerQuery);
                                                //Print the message
-                                                e.getLocalizedMessage();
-				            }
+                                                ex.getLocalizedMessage();
+				          }                           
                                  finally { qexec.close();}
 			} 
                         catch (QueryParseException qpe) {
-				logger.error("Exception for query {}. "
+				logger.error("Exception for query [{}]. "
                                             + "Please check your SPARQL query syntax. The label cannot be obtained. " , innerQuery);
 			}
 		return uri;

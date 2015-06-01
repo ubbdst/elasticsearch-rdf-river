@@ -17,10 +17,12 @@ public class RDFRiverPlugin extends AbstractPlugin {
 	public RDFRiverPlugin(){
 	}
 
+        @Override
 	public String name() {
 		return "eea-rdf-river";
 	}
 
+        @Override
 	public String description() {
 		return "Turtle RDF River Plugin";
 	}
