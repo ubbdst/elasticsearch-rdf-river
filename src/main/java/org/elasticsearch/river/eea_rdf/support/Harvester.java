@@ -7,6 +7,7 @@ import com.hp.hpl.jena.graph.Triple;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.*;
 import com.hp.hpl.jena.sparql.engine.http.QueryExceptionHTTP;
+import com.hp.hpl.jena.tdb.TDBFactory;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RiotException;
@@ -21,18 +22,14 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.river.eea_rdf.settings.EEASettings;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-
-
 /**
- *
  * @author EEA <br>
  * Customized to accommodate requests from the University of Bergen Library.<br>
- * Hemed, 09-03-2015
+ * Hemed Ali, 09-03-2015
  */
 public class Harvester implements Runnable {
 
@@ -48,6 +45,7 @@ public class Harvester implements Runnable {
 	private String startTime;
 	private Set<String> rdfUrls;
 	private String rdfEndpoint;
+        private String tdbLocation;
 	private List<String> rdfQueries;
 	private QueryType rdfQueryType;
 	private List<String> rdfPropList;
@@ -82,12 +80,13 @@ public class Harvester implements Runnable {
 	private Boolean closed = false;
 
 	private HashMap<String, String> uriLabelCache;
+        private Dataset tdbDataset = null;
 
-	/**
- 	 * Sets the {@link Harvester}'s {@link #rdfUrls} parameter
- 	 * @param url - a list of urls
- 	 * @return the {@link Harvester} with the {@link #rdfUrls} parameter set
- 	 */
+        /**
+         * Sets the {@link Harvester}'s {@link #rdfUrls} parameter
+         * @param url - a list of urls
+         * @return the {@link Harvester} with the {@link #rdfUrls} parameter set
+         */
 	public Harvester rdfUrl(String url) {
 		url = url.substring(1, url.length() - 1);
 		uriLabelCache = new HashMap<String, String>();
@@ -105,7 +104,32 @@ public class Harvester implements Runnable {
 		rdfEndpoint = endpoint;
 		return this;
 	}
-
+        
+        /** Getter for Dataset
+        * @return a RDF dataset
+        **/
+        public  Dataset getTDBDataset(){
+            return tdbDataset;
+        }
+        
+        /**Setter for TDB dataset
+         * @param ds, a RDF dataset
+         **/
+        public void setTDBDataset(Dataset ds){
+         if(ds != null)
+             this.tdbDataset = ds;
+        }
+        
+       /**
+	* Sets the {@link Harvester}'s {@link #tdbLocation} parameter
+        * @param pathToTDB
+	* @return the same {@link Harvester} with the {@link #tdbLocation} set
+	*/
+	public Harvester rdfTDBLocation(String pathToTDB) {
+		tdbLocation = pathToTDB;
+		return this;
+	}
+        
 	/**
 	 * Sets the {@link Harvester}'s {@link #rdfQueries} parameter
 	 * @param query - new list of queries
@@ -316,14 +340,25 @@ public class Harvester implements Runnable {
 	 * @Observation If the list is not empty, the {@link #toDescribeURIs}
 	 * property is set to true
 	 */
-	public Harvester rdfURIDescription(String uriList) {
-		uriList = uriList.substring(1, uriList.length() - 1);
+        
+         public Harvester rdfURIDescription(List<String> uriList) {
+		if(!uriList.isEmpty()){
+	          toDescribeURIs = true;
+		  uriDescriptionList = new ArrayList<String>(uriList);
+                }   
+		return this;
+	}
+         
+	/**public Harvester rdfURIDescription(String uriList) {
+	       uriList = uriList.substring(1, uriList.length() - 1);
 		if(!uriList.isEmpty())
 			toDescribeURIs = true;
 		uriDescriptionList = Arrays.asList(uriList.split(","));
 		return this;
-	}
-
+	}**/
+        
+        
+       
 	/**
 	 * Sets the {@link Harvester}'s {@link #uriDescriptionList} parameter.
 	 * When it is set to true  a new property is added to each resource:
@@ -391,7 +426,7 @@ public class Harvester implements Runnable {
             return this;
         }
               
-        /**
+       /**
        * @param bulkActions
        * @return this object with numberOfBulkActions parameter set
        **/
@@ -458,6 +493,7 @@ public class Harvester implements Runnable {
 	}
 
 
+        @Override
 	public void run() {
 		long currentTime = System.currentTimeMillis();
 		boolean success;
@@ -470,11 +506,12 @@ public class Harvester implements Runnable {
 		if (success) {
 			setLastUpdate(new Date(currentTime));
 		}
-                
-                
-		/**client.admin().indices()
+                       
+		/**
+                 * client.admin().indices()
 			  .prepareDeleteMapping("_river").setType(riverName)
-			  .execute().actionGet();**/
+			  .execute().actionGet();
+                **/
 	}
 
 	public boolean runSync() {
@@ -751,28 +788,35 @@ public class Harvester implements Runnable {
 	}
 
 	/**
-	 * Starts the harvester for queries and/or URLs
-         * @return 
-	 */
+	* Starts the harvester for queries and/or URLs
+        * @return 
+	*/
 	public boolean runIndexAll() {
 		logger.info(
-				"Starting RDF harvester: endpoint [{}], queries [{}]," +
+				"Starting RDF harvester: endpoint [{}], TDB [{}] queries [{}]," +
 				"URLs [{}], index name [{}], typeName [{}]",
- 				rdfEndpoint, rdfQueries, rdfUrls, indexName, typeName);
+ 				rdfEndpoint, tdbLocation, rdfQueries, rdfUrls, indexName, typeName);
 
 		while (true) {
 			if(this.closed){
-				logger.info("Ended harvest for endpoint [{}], queries [{}]," +
-						"URLs [{}], index name {}, type name {}",
-						rdfEndpoint, rdfQueries, rdfUrls, indexName, typeName);
+				logger.info("Ended harvest for endpoint [{}], TDB [{}]  queries [{}]," +
+						"URLs [{}], index name [{}], type name [{}]",
+						rdfEndpoint, tdbLocation, rdfQueries, rdfUrls, indexName, typeName);
 				return true;
 			}
 
 			/**
 			 * Harvest from a SPARQL endpoint
 			 */
-			if(!rdfQueries.isEmpty()) {
+			if(!rdfQueries.isEmpty() && !rdfEndpoint.trim().isEmpty()) {
 				harvestFromEndpoint();
+			}
+                        
+                       	/**
+			 * Harvest from TDB
+			 */
+			if(!rdfQueries.isEmpty() && !tdbLocation.trim().isEmpty()) {
+				harvestFromTDB();
 			}
 
 			/**
@@ -904,6 +948,8 @@ public class Harvester implements Runnable {
 						rdfQuery, qpe);
 				continue;
 			}
+                        //Dataset dataset = TDBFactory.createDataset("D:\\marcus-admin-tdb");
+                        //qexec = QueryExecutionFactory.create(query, dataset); 
 
 			qexec = QueryExecutionFactory.sparqlService(rdfEndpoint, query);
 
@@ -917,10 +963,60 @@ public class Harvester implements Runnable {
 			}
 		}
 	}
+        
+         /**
+	 * Harvest from TDB using queries specified from {@link #rdfQueries} list.
+	 */
+	private void harvestFromTDB() {
+
+		Query query;
+		QueryExecution qexec;
+                Dataset dataset;
+
+		for (String rdfQuery : rdfQueries) {
+			logger.info(
+				"Harvesting from TDB [{}] with query: [{}] on index [{}] and type [{}]",
+ 				tdbLocation, rdfQuery, indexName, typeName);
+
+			try {
+				query = QueryFactory.create(rdfQuery);
+			} catch (QueryParseException qpe) {
+				logger.error(
+						"Could not parse [{}]. Please provide a relevant query. {}",
+						rdfQuery, qpe);
+				continue;
+			}
+                        //Create a dataset object
+                        dataset = TDBFactory.createDataset(tdbLocation);
+                        
+                        if(dataset == null){
+                          throw new IllegalArgumentException("Empty dataset. Please check your path to TDB");
+                        }
+                        //Use this dataset throughout
+                        this.setTDBDataset(dataset);
+                        
+                        //Begin READ transaction
+                        dataset.begin(ReadWrite.READ);
+                        
+                        //Execute SPARQL queries
+			qexec = QueryExecutionFactory.create(query, dataset);
+
+			try {
+			        Model model = getModel(qexec);
+				addModelToES(model, client.prepareBulk());
+			} catch (Exception e) {
+				logger.error("Exception [{}] occured while harvesting",
+							 e.getLocalizedMessage());
+			} finally {
+				qexec.close();
+                                dataset.end();
+			}
+		}
+	}
 
 	/**
-	 * Harvests all the triplets from each URI in the @rdfUrls list
-	 */
+	* Harvests all the triplets from each URI in the @rdfUrls list
+	*/
 	private void harvestFromDumps() {
 		for(String url:rdfUrls) {
 			if(url.isEmpty()) continue;
@@ -1073,6 +1169,8 @@ public class Harvester implements Runnable {
 				|| (willNormalizeProp && normalizeProp.containsKey(property))) {
 				properties.add(prop);
 			}
+                        //Print out the property that is ignored.
+                        //else {logger.info("Ignoring Property: " + prop);}
 		}
 
 		ResIterator rsiter = model.listSubjects();
@@ -1117,7 +1215,7 @@ public class Harvester implements Runnable {
                   //Show time taken to perfom the action 
                    String actionPerformed =  updateDocuments == true? "update: " : "index: ";
                    logger.info("\n==========================================="
-                              +"\n\tTotal documents proccessed: " + bulkLength
+                              +"\n\tTotal documents processed: " + bulkLength
                               + "\n\tIndex: " + indexName
                               + "\n\tType: " + typeName
                               + "\n\tTime taken to " + actionPerformed + (System.currentTimeMillis() - startTime)/1000.0 
@@ -1160,7 +1258,7 @@ public class Harvester implements Runnable {
         
         
         /** 
-         * Prepare document to be bulk indexed in ElasticSearch 
+         * Prepare document to be bulk indexed in Elasticsearch 
         **/
         private void prepareIndexDocument(BulkRequestBuilder bulkRequest, String documentToIndex, String documentId){
                          bulkRequest.add(client
@@ -1232,7 +1330,10 @@ public class Harvester implements Runnable {
 		} else if(node.isResource()) {
 			result = node.asResource().getURI();
 			if(toDescribeURIs) {
-				result = getLabelForUri(result);
+                                //NOTE: We have excluded possibility of getting labels from SPARQL endpoint because
+                                //it was error-prone due to HTTP Exceptions - too many requests in less than a second 
+                                //threw BindException - Address already in use.
+				 result = getLabelForUriFromTDB(result, this.getTDBDataset());
 			}
 			quote = true;
 		}
@@ -1258,49 +1359,116 @@ public class Harvester implements Runnable {
 	 * @return a String value, either a label for the parameter or its value
 	 * if no label is obtained from the endpoint
 	 */
-	private String getLabelForUri(String uri){
-		for(String prop:uriDescriptionList) {
-			String innerQuery = "SELECT ?r WHERE {<" + uri + "> <" +
-				prop + "> ?r } LIMIT 1";
-
-			try {
-				Query query = QueryFactory.create(innerQuery);
-				QueryExecution qexec = QueryExecutionFactory.sparqlService(
-						rdfEndpoint,
-						query);
-				boolean keepTrying = true;
-                                int numberOfRetry = 0;
-                                
-                                //If the label is not available, retry querying the endpoint DEFAULT_NUMBER_OF_RETRY times, 
-                                //if no response, simply return resource URI instead of it's label.
-				while(keepTrying && numberOfRetry < EEASettings.DEFAULT_NUMBER_OF_RETRY) 
-                                {
-					keepTrying = false;
-					try {
-						ResultSet results = qexec.execSelect();
-
-						if(results.hasNext()) 
-                                                {
+         
+         private String getLabelForUriFromEndpoint(String uri){
+                       String innerQuery  = getInnerQueryForLabel(uri);
+			try { 
+                                Query query = QueryFactory.create(innerQuery);
+                                QueryExecution qexec = QueryExecutionFactory.sparqlService(rdfEndpoint, query);
+                                     try{
+					     ResultSet results = qexec.execSelect();
+						if(results.hasNext()) {
 							QuerySolution sol = results.nextSolution();
 							String result = EEASettings.parseForJson(
-									sol.getLiteral("r").getLexicalForm());
-							if(!result.isEmpty())
-								return result;
+									sol.getLiteral("label").getLexicalForm());
+                                                        
+							if(!result.isEmpty()){
+                                                           qexec.close();
+					                   return result;
+                                                        }
+                                                   
 						}
-					} catch(Exception e){
-                                                keepTrying = true;
-                                                numberOfRetry++;
-						logger.warn("Could not get label for uri {}. Retrying..." , uri);
-                                                
-                                                //Print the stack trace
-                                                e.printStackTrace();
-				}finally { qexec.close();}
-				}
-			} catch (QueryParseException qpe) {
-				logger.error("Exception for query {}. The label cannot be obtained",
-							 innerQuery);
+					} 
+                                     catch(Exception ex){     
+				           logger.warn("Could not get label for uri [{}] from endpoint [{}] with query [{}] " , uri , rdfEndpoint, innerQuery);
+                                                ex.getLocalizedMessage();
+				          }                           
+                                 finally { qexec.close();}
+			} 
+                        catch (QueryParseException qpe) {
+				logger.error("Exception for query [{}]. "
+                                            + "Please check your SPARQL query syntax. The label cannot be obtained. Details [{}] " , innerQuery , qpe.getLocalizedMessage());
 			}
-		}
 		return uri;
 	}
+        
+        /**
+         * This method tries to get labels by querying a TDB store instead of SPARQL Endpoint. We have seen that using TDB to get labels 
+         * from a single JVM is somewhat efficient in the sense that you are capable of doing as many queries as possible within a second 
+         * without getting HTTP Exceptions or Socket bind exceptions as contrasted to SPARQL endpoints.
+         * Hemed Ali, 28-05-2015
+         * 
+         * <p>@param uri - the URI for which a label is required
+	 * @return a String value, either a label for the parameter or its value
+	 * if no label is obtained, the URI is returned.
+        **/
+        private String getLabelForUriFromTDB(String uri, Dataset dataset){
+                       String innerQuery  = getInnerQueryForLabel(uri);
+			try {
+				Query query = QueryFactory.create(innerQuery);
+					try (QueryExecution qexec = QueryExecutionFactory.create(query, dataset)) {
+					     ResultSet results = qexec.execSelect();
+						if(results.hasNext()) {
+							QuerySolution sol = results.nextSolution();
+							String result = EEASettings.parseForJson(
+									sol.getLiteral("label").getLexicalForm());
+							if(!result.isEmpty()){
+                                                           qexec.close();
+					                   return result;
+                                                        }                                           
+						}
+					} catch(Exception e){
+						logger.warn("Could not get label for uri [{}] from TDB [{}] with query [{}] " , uri , tdbLocation, innerQuery);
+                                                e.getLocalizedMessage();
+				            }
+			} 
+                        catch (QueryParseException qpe) {
+				logger.error("Exception for query [{}]. "
+                                            + "Please check your SPARQL query syntax. "
+                                            + "The label cannot be obtained. " , innerQuery);
+			}
+		return uri;
+	}  
+        
+           /**
+           * A method to build up the query based on the uriDescriptionList. The query will be used
+           * to fetch label from the resources. Hemed, 26-05-2015 
+           * @param uri
+           * @since 26-05-15
+           * At the end, we need an inner query like the following:-
+           *String innerQuery = "SELECT ?label "
+                              + "WHERE { GRAPH ?G { "
+                              + "OPTIONAL { <" + uri + "> " + "<http://www.w3.org/2000/01/rdf-schema#label> ?rdfLabel } "
+                              + "OPTIONAL { <" + uri + "> " + "<http://xmlns.com/foaf/0.1/name> ?foafName } "
+                              + "OPTIONAL { <" + uri + "> " + "<http://www.w3.org/2004/02/skos/core#prefLabel> ?prefLabel } "
+                              + "BIND(COALESCE(?foafName,?rdfLabel,?prefLabel) AS ?label) " + "}} "
+           * 
+           **/
+            private String getInnerQueryForLabel(String uri){
+               
+            String options = "";
+            String bind = "";
+            int count = 0;
+            String labelCoalesce = "";
+            
+            //This is too specific to the University of Bergen Library´s Ontology.
+            //In the future, you might want to let the default language be autmatically picked up.
+            String filter =  "FILTER (langMatches(lang(?label), \"\") || langMatches(lang(?label), \"no\")) ";
+                
+                  //Iterate over the list and build up the options.
+                   for(String property : uriDescriptionList) {
+                           String label = "?label" + count++;
+                           options +=  "OPTIONAL { <" + uri + "> " + "<" + property + "> " + label + " } ";
+                           labelCoalesce += label + "," ;
+                     }
+                     //Build up coalesce string, this function checks the label for the first occurance in sequencial order,
+                     //and if the label was not found, it checks for the next one.
+                      bind += "BIND(COALESCE(" + labelCoalesce.substring(0 , labelCoalesce.length()-1) + ") AS ?label) ";
+                      
+                      //Build up the final query to fetch the corresponding label.
+                      String innerQuery = "SELECT ?label "
+                                         + "WHERE { GRAPH ?G { "  + options + bind + "} " + filter + "} "  +  "LIMIT 1";
+            return innerQuery;
+           }
+        
 }

@@ -4,11 +4,10 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.river.RiversModule;
 import org.elasticsearch.river.eea_rdf.RDFRiverModule;
+import org.elasticsearch.river.eea_rdf.settings.EEASettings;
 
 /**
- *
- * @author iulia
- *
+ * @author iulia, EEA
  */
 public class RDFRiverPlugin extends AbstractPlugin {
 
@@ -16,16 +15,18 @@ public class RDFRiverPlugin extends AbstractPlugin {
 	public RDFRiverPlugin(){
 	}
 
+        @Override
 	public String name() {
 		return "eea-rdf-river";
 	}
 
+        @Override
 	public String description() {
 		return "Turtle RDF River Plugin";
 	}
 
 	public void onModule(RiversModule module) {
-		module.registerRiver("eeaRDF", RDFRiverModule.class);
+		module.registerRiver(EEASettings.RIVER_SETTINGS_KEY, RDFRiverModule.class);
 	}
 }
 

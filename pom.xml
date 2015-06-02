@@ -3,12 +3,12 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.elasticsearch.plugin.river.eea_rdf</groupId>
   <artifactId>eea-rdf-river-plugin</artifactId>
-  <version>1.5.3-SNAPSHORT</version>
+  <version>1.5.3-SNAPSHOT</version>
 
   <packaging>jar</packaging>
 
   <name>eea-rdf-river-plugin</name>
-  <description>Elasticsearch RDF River Plugin for EEA</description>
+  <description>Elasticsearch RDF River Plugin</description>
 
   <inceptionYear>2013</inceptionYear>
 
@@ -122,8 +122,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.0</version>
         <configuration>
-          <source>1.5</source>
-          <target>1.5</target>
+          <source>1.7</source>
+          <target>1.7</target>
         </configuration>
       </plugin>
 

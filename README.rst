@@ -4,13 +4,13 @@ EEA ElasticSearch RDF River Plugin
 
 Introduction
 ============
-This River Plugin for ElasticSearch allows to harvest metadata from
-SPARQL endpoints or plain RDF files into ElasticSearch. It is provided as a
+This River Plugin for Elasticsearch allows to harvest metadata from
+SPARQL endpoints, TDB store or plain RDF files into Elasticsearch. It is provided as a
 plugin.
 
-The original RDF River Plugin is available from https://github.com/eea/eea.elasticsearch.river.rdf
+This plugin is the modified version of the EEA RDF River Plugin which is available at https://github.com/eea/eea.elasticsearch.river.rdf. The plugin was modified to meet the University of Bergen Library's requirements. 
 
-This version is modified to meet the University of Bergen Library requirements. 
+In this river, many options have been introduced including the support for harvesting data directly from `TDB <https://jena.apache.org/documentation/tdb/>`_ , ability to update only part of the indexed document and more. Please see the documentation for more details.
 
 
 .. contents::
@@ -44,9 +44,9 @@ Main features
 =============
 
 1. Indexing RDFs given by their URIs
-2. Indexing triples retrieved from a SPARQL endpoint, through SELECT queries
-3. Indexing triples retrieved from a SPARQL endpoint, through CONSTRUCT queries
-4. Indexing triples retrieved from a SPARQL endpoint, through DESCRIBE queries
+2. Indexing triples retrieved from a SPARQL endpoint or from TDB, through SELECT queries
+3. Indexing triples retrieved from a SPARQL endpoint or from TDB, through CONSTRUCT queries
+4. Indexing triples retrieved from a SPARQL endpoint or from TDB, through DESCRIBE queries
 5. Customizable index and type names
 6. Blacklist of unnecessary properties
 7. Whitelist of required properties
@@ -160,7 +160,27 @@ Note:
  
 **Tips**: `See how to optimize your queries / avoid endpoint timeout <http://taskman.eionet.europa.eu/projects/zope/wiki/HowToWriteOptimalSPARQLQueries>`_
 
-From both URIs and SPARQL endpoint
+
+From TDB
+++++++++++++++++++++++
+
+Data can also be harvested directly from TDB storage. It is exactly the same as from SPARQL endpoint discussed above except you will have to specify tdbLocation instead of endpoint in the river settings. Note that the key tdbLocation holds the path to the TDB directory.
+
+
+::
+
+ curl -XPUT 'localhost:9200/_river/rdf_river/_meta' -d '{
+   "type" : "eeaRDF",
+   "eeaRDF" : {
+      "tdbLocation" : "path/to/tdb",
+      "query" : [
+        "DESCRIBE ?r WHERE { ?r a <http://www.eea.europa.eu/portal_types/AssessmentPart#AssessmentPart> }
+      ],
+      "queryType" : "describe"
+   }
+ }'
+
+From URIs, TDB and SPARQL endpoint
 ++++++++++++++++++++++++++++++++++
 
 All supported parameters are optional. Moreover, it is possible to index metadata
@@ -174,6 +194,7 @@ from a SPARQL endpoint and several unrelated URIs.
       "uris" : ["http://dd.eionet.europa.eu/vocabulary/aq/pollutant/rdf",
                 "http://dd.eionet.europa.eu/vocabulary/aq/measurementmethod/rdf"],
       "endpoint" : "http://semantic.eea.europa.eu/sparql",
+      "tdbLocation" : "/path/to/tdb"
       "query" : ["PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> PREFIX cr: <http://cr.eionet.europa.eu/ontologies/contreg.rdf#> CONSTRUCT {?s ?p ?o} WHERE { ?s a cr:SparqlBookmark ; ?p ?o}"],
       "queryType" : "construct"
    }
@@ -202,8 +223,8 @@ Please see below:-
    }
  }'
  
- By setting the flag updateDocuments to true in the river settings, 
- you are telling the river to query and then merge the documents to the existing one based on the ID.
+By setting the flag updateDocuments to true in the river settings, 
+you are telling the river to query and then merge the documents to the existing one based on their ID.
 
 
 
@@ -291,6 +312,10 @@ very difficult to obtain information from it, if the information is not indexed 
 "uriDescription" is set, the URIs are replaced by the resource's label. The label is the first of the properties 
 given as arguments for "uriDescription", for which the resource has an object.
 
+Note: 
+ We have excluded the possibility of getting labels from SPARQL endpoint because it was error-prone due to HTTP Exceptions.
+ Currently, this feature is possible only if you are using TDB as your data storage. We have seen that using TDB to get labels    from a single JVM is somewhat efficient in the sense that you are capable of doing as many queries as possible in less than a    second without getting HTTP Exceptions or socket bind exceptions as contrasted to SPARQL endpoints.
+
 ::
 
  curl -XPUT 'localhost:9200/_river/rdf_river/_meta' -d '{
@@ -298,7 +323,7 @@ given as arguments for "uriDescription", for which the resource has an object.
    "eeaRDF" : {
       "uris" : ["http://dd.eionet.europa.eu/vocabulary/aq/individualexceedances/rdf",
                 "http://dd.eionet.europa.eu/vocabulary/aq/pollutant/rdf"],
-      "endpoint" : "http://semantic.eea.europa.eu/sparql",
+      "tdbLocation" : "/var/lib/tdb",
       "query" : ["PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> PREFIX cr: <http://cr.eionet.europa.eu/ontologies/contreg.rdf#> CONSTRUCT {?s ?p ?o} WHERE { ?s a cr:SparqlBookmark ; ?p ?o}"],
       "queryType" : "construct",
       "addLanguage" : true,
