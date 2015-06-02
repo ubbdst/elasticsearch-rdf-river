@@ -788,9 +788,9 @@ public class Harvester implements Runnable {
 	}
 
 	/**
-	 * Starts the harvester for queries and/or URLs
-         * @return 
-	 */
+	* Starts the harvester for queries and/or URLs
+        * @return 
+	*/
 	public boolean runIndexAll() {
 		logger.info(
 				"Starting RDF harvester: endpoint [{}], TDB [{}] queries [{}]," +
@@ -1258,7 +1258,7 @@ public class Harvester implements Runnable {
         
         
         /** 
-         * Prepare document to be bulk indexed in ElasticSearch 
+         * Prepare document to be bulk indexed in Elasticsearch 
         **/
         private void prepareIndexDocument(BulkRequestBuilder bulkRequest, String documentToIndex, String documentId){
                          bulkRequest.add(client
@@ -1331,7 +1331,7 @@ public class Harvester implements Runnable {
 			result = node.asResource().getURI();
 			if(toDescribeURIs) {
                                 //NOTE: We have excluded possibility of getting labels from SPARQL endpoint because
-                                //it was error prone due to HTTP Exceptions - too many requests in less than a second 
+                                //it was error-prone due to HTTP Exceptions - too many requests in less than a second 
                                 //threw BindException - Address already in use.
 				 result = getLabelForUriFromTDB(result, this.getTDBDataset());
 			}
@@ -1393,12 +1393,12 @@ public class Harvester implements Runnable {
 	}
         
         /**
-         * This method tries to get labels by querying a TDB store instead of SPARQL Endpoint. Using TDB to get labels 
-         * from a single JVM is somewhat efficient in the sense that you are capable of doing a lot of queries within a second 
+         * This method tries to get labels by querying a TDB store instead of SPARQL Endpoint. We have seen that using TDB to get labels 
+         * from a single JVM is somewhat efficient in the sense that you are capable of doing as many queries as possible within a second 
          * without getting HTTP Exceptions or Socket bind exceptions as contrasted to SPARQL endpoints.
          * Hemed Ali, 28-05-2015
          * 
-         * @param uri - the URI for which a label is required
+         * <p>@param uri - the URI for which a label is required
 	 * @return a String value, either a label for the parameter or its value
 	 * if no label is obtained, the URI is returned.
         **/

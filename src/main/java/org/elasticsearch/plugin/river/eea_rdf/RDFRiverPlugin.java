@@ -7,9 +7,7 @@ import org.elasticsearch.river.eea_rdf.RDFRiverModule;
 import org.elasticsearch.river.eea_rdf.settings.EEASettings;
 
 /**
- *
- * @author iulia
- *
+ * @author iulia, EEA
  */
 public class RDFRiverPlugin extends AbstractPlugin {
 

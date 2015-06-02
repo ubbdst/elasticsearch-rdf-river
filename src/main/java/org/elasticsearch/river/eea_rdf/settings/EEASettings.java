@@ -3,14 +3,12 @@ import java.util.regex.*;
 import java.util.ArrayList;
 import java.util.List;
 /**
- *
  * @author EEA
- * Modified by Hemed, 09-03-2015
- *
+ * Modified by Hemed Ali, 09-03-2015
  */
 public abstract class EEASettings {
        
-        public final static String RIVER_SETTINGS_KEY = "UBBRiver";
+        public final static String RIVER_SETTINGS_KEY = "eeaRDF";
 	public final static String DEFAULT_INDEX_NAME = "rdfdata";
 	public final static String DEFAULT_TYPE_NAME = "resource";
 	public final static int DEFAULT_NUMBER_OF_BULK_ACTIONS = 100;
