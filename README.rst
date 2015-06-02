@@ -10,7 +10,7 @@ plugin.
 
 This plugin is the modified version of the EEA RDF River Plugin which is available at https://github.com/eea/eea.elasticsearch.river.rdf. The plugin was modified to meet the University of Bergen Library's requirements. 
 
-In this river, many options have been added including the support for harvesting data directly from TDB. Please see the documentation for more details.
+In this river, many options have been introduced including the support for harvesting data directly from `TDB <https://jena.apache.org/documentation/tdb/>`_ , ability to update only part of the indexed document and more. Please see the documentation for more details.
 
 
 .. contents::
@@ -164,7 +164,7 @@ Note:
 From TDB
 ++++++++++++++++++++++
 
-Data can also be harvested from TDB storage. It is exactly the same as from SPARQL endpoint discussed above except you will have to specify tdbLocation instead of endpoint. Note that the key tdbLocation holds the path to the TDB directory.
+Data can also be harvested directly from TDB storage. It is exactly the same as from SPARQL endpoint discussed above except you will have to specify tdbLocation instead of endpoint in the river settings. Note that the key tdbLocation holds the path to the TDB directory.
 
 
 ::
@@ -223,8 +223,8 @@ Please see below:-
    }
  }'
  
- By setting the flag updateDocuments to true in the river settings, 
- you are telling the river to query and then merge the documents to the existing one based on the ID.
+By setting the flag updateDocuments to true in the river settings, 
+you are telling the river to query and then merge the documents to the existing one based on their ID.
 
 
 
@@ -312,8 +312,9 @@ very difficult to obtain information from it, if the information is not indexed 
 "uriDescription" is set, the URIs are replaced by the resource's label. The label is the first of the properties 
 given as arguments for "uriDescription", for which the resource has an object.
 
-NOTE: We have excluded possibility of getting labels from SPARQL endpoint because it was error prone due to HTTP Exceptions.
-Currently, this is possible only if you are using TDB as your data storage and you have specified it in the river settings. 
+Note: 
+ We have excluded the possibility of getting labels from SPARQL endpoint because it was error-prone due to HTTP Exceptions.
+ Currently, this feature is possible only if you are using TDB as your data storage. We have seen that using TDB to get labels    from a single JVM is somewhat efficient in the sense that you are capable of doing as many queries as possible in less than a    second without getting HTTP Exceptions or socket bind exceptions as contrasted to SPARQL endpoints.
 
 ::
 
