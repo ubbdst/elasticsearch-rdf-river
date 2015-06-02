@@ -1,5 +1,5 @@
 ==================================
-EEA ElasticSearch RDF River Plugin
+Elasticsearch RDF River Plugin
 ==================================
 
 Introduction
