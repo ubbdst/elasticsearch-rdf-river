@@ -1052,11 +1052,20 @@ public class Harvester implements Runnable {
 
 		if(addUriForResource) {
 			results.add("\"" + rs.toString() + "\"");
-			jsonMap.put(
-					"http://www.w3.org/1999/02/22-rdf-syntax-ns#about",
-					results);
+                        String uriForResource = "http://www.w3.org/1999/02/22-rdf-syntax-ns#about";
+                        String normalizedProperty = "";
+                        //If a property is defined in the normProp list, 
+                        //then use normalized(shorten) property.
+                        if (normalizeProp.containsKey(uriForResource)){
+			     normalizedProperty = normalizeProp.get(uriForResource);
+                        }
+                        //Otherwise use the full uri for the resource
+                        else{
+                            normalizedProperty = uriForResource;
+                        }
+                        
+			jsonMap.put(normalizedProperty , results);
 		}
-
 		Set<String> rdfLanguages = new HashSet<String>();
 
 		for(Property prop: properties) {
@@ -1446,15 +1455,15 @@ public class Harvester implements Runnable {
            **/
             private String getInnerQueryForLabel(String uri){
                
-            String options = "";
-            String bind = "";
-            int count = 0;
-            String labelCoalesce = "";
+                String options = "";
+                String bind = "";
+                int count = 0;
+                String labelCoalesce = "";
             
-            //This is too specific to the University of Bergen Library´s Ontology.
-            //In the future, you might want to let the default language be autmatically picked up.
-            String filter =  "FILTER (langMatches(lang(?label), \"\") || langMatches(lang(?label), \"no\")) ";
-                
+                   //This is too specific to the University of Bergen Library´s Ontology.
+                   //In the future, you might want to let the default language be autmatically picked up.
+                   String filter =  "FILTER (langMatches(lang(?label), \"\") || langMatches(lang(?label), \"no\")) ";
+
                   //Iterate over the list and build up the options.
                    for(String property : uriDescriptionList) {
                            String label = "?label" + count++;
