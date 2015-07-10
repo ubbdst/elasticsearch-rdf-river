@@ -1052,18 +1052,12 @@ public class Harvester implements Runnable {
 
 		if(addUriForResource) {
 			results.add("\"" + rs.toString() + "\"");
-                        String uriForResource = "http://www.w3.org/1999/02/22-rdf-syntax-ns#about";
-                        String normalizedProperty = "";
+                        String normalizedProperty = EEASettings.DEFAULT_RESOURCE_URI;
                         //If a property is defined in the normProp list, 
                         //then use normalized(shorten) property.
-                        if (normalizeProp.containsKey(uriForResource)){
-			     normalizedProperty = normalizeProp.get(uriForResource);
+                        if (willNormalizeProp && normalizeProp.containsKey(EEASettings.DEFAULT_RESOURCE_URI)){
+			     normalizedProperty = normalizeProp.get(EEASettings.DEFAULT_RESOURCE_URI);
                         }
-                        //Otherwise use the full uri for the resource
-                        else{
-                            normalizedProperty = uriForResource;
-                        }
-                        
 			jsonMap.put(normalizedProperty , results);
 		}
 		Set<String> rdfLanguages = new HashSet<String>();
