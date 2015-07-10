@@ -1058,12 +1058,10 @@ public class Harvester implements Runnable {
                         //then use normalized(shorten) property.
                         if (normalizeProp.containsKey(uriForResource)){
 			     normalizedProperty = normalizeProp.get(uriForResource);
-                             logger.info("=======Printing Shorten Val=======" + normalizedProperty + " for" + rs.toString());
                         }
                         //Otherwise use the full uri for the resource
                         else{
                             normalizedProperty = uriForResource;
-                             logger.info("=======Using the Shorten Val=======" + normalizedProperty + " for" + rs.toString());
                         }
                         
 			jsonMap.put(normalizedProperty , results);
