@@ -11,6 +11,11 @@ public abstract class EEASettings {
         public final static String RIVER_SETTINGS_KEY = "eeaRDF";
 	public final static String DEFAULT_INDEX_NAME = "rdfdata";
 	public final static String DEFAULT_TYPE_NAME = "resource";
+        public final static String SUGGESTION_FIELD = "suggest";
+        public final static String SUGGESTION_INPUT_FIELD = "input";
+        public final static String SUGGESTION_OUTPUT_FIELD = "output";
+        public final static String SUGGESTION_PAYLOAD_FIELD = "payload";
+        
 	public final static int DEFAULT_NUMBER_OF_BULK_ACTIONS = 100;
         public final static int DEFAULT_NUMBER_OF_RETRY = 5;
 	public final static int DEFAULT_BULK_REQ = 30;
@@ -27,7 +32,7 @@ public abstract class EEASettings {
         public final static String DEFAULT_RESOURCE_URI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#about"; 
 	public final static String  DEFAULT_LIST_TYPE = "white";
 	public final static Boolean DEFAULT_ADD_LANGUAGE = true;
-	public final static String  DEFAULT_LANGUAGE = "\"en\"";
+	public final static String  DEFAULT_LANGUAGE = "no";
 	public final static Boolean DEFAULT_ADD_URI = true;
         public final static Boolean DEFAULT_UPDATE_DOCUMENTS = false;
         public final static String[] DEFAULT_URI_DESCRIPTION = { "http://www.w3.org/2000/01/rdf-schema#label" };
