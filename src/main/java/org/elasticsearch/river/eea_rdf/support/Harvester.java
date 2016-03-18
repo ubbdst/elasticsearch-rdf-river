@@ -1273,12 +1273,12 @@ public class Harvester implements Runnable {
 
                 }
                 //Show time taken to perfom the action 
-                String actionPerformed = updateDocuments == true ? "update: " : "index: ";
+                String actionPerformed = updateDocuments == true ? "updated: " : "indexed: ";
                 logger.info("\n==========================================="
-                        + "\n\tTotal documents processed: " + bulkLength
+                        + "\n\tTotal documents " + actionPerformed + ": " + bulkLength
                         + "\n\tIndex: " + indexName
                         + "\n\tType: " + typeName
-                        + "\n\tTime taken to " + actionPerformed + (System.currentTimeMillis() - startTime) / 1000.0
+                        + "\n\tTime taken: " + (System.currentTimeMillis() - startTime) / 1000.0
                         + " seconds"
                         + "\n===========================================");
         }
