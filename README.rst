@@ -20,9 +20,9 @@ Installation
 
 Prerequisites:
 
-* ElasticSearch 0.90.2 or later
+* ElasticSearch 1.x 
 
-* Java 7 Runtime Environment or later
+* Java 8 Runtime Environment or later
 
 Binaries for this plugin are available at:
 
