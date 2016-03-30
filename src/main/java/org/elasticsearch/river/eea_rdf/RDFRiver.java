@@ -162,18 +162,18 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         @Override
 	public void start() {
 		harvesterThread = EsExecutors.daemonThreadFactory(
-				settings.globalSettings(),
-				"eea_rdf_river(" + riverName().name() +	")")
-			.newThread(harvester);
+				settings.globalSettings(), "eea_rdf_river(" + riverName().name() + ")")
+				.newThread(harvester);
 		harvesterThread.start();
 	}
 
         @Override
 	public void close() {
-		harvester.log("Closing EEA RDF river [" + riverName.name() + "]");
-		harvester.setClose(true);
+			harvester.log("Closing UBB RDF river [" + riverName.name() + "]");
+		    harvester.setClose(true);
                 
-                if(harvesterThread != null)
-		    harvesterThread.interrupt();
+			if(harvesterThread != null) {
+				harvesterThread.interrupt();
+			}
 	}
 }

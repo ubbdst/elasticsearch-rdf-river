@@ -1,13 +1,13 @@
 package org.elasticsearch.river.eea_rdf.support;
 
-import com.hp.hpl.jena.graph.Graph;
-import com.hp.hpl.jena.graph.Node;
-import com.hp.hpl.jena.graph.NodeFactory;
-import com.hp.hpl.jena.graph.Triple;
-import com.hp.hpl.jena.query.*;
-import com.hp.hpl.jena.rdf.model.*;
-import com.hp.hpl.jena.sparql.engine.http.QueryExceptionHTTP;
-import com.hp.hpl.jena.tdb.TDBFactory;
+import org.apache.jena.graph.*;
+import org.apache.jena.graph.Node;
+import org.apache.jena.graph.NodeFactory;
+import org.apache.jena.graph.Triple;
+import org.apache.jena.query.*;
+import org.apache.jena.rdf.model.*;
+import org.apache.jena.sparql.engine.http.QueryExceptionHTTP;
+import org.apache.jena.tdb.TDBFactory;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RiotException;
@@ -1122,9 +1122,8 @@ public class Harvester implements Runnable {
                                                 }
                                         }
                                 }
-                                //Add values to suggest field for auto suggestion, maximum 50 characters string.
+                                //Add values to suggest field for auto suggestion.
                                 if (Strings.hasText(currentValue)
-                                        && currentValue.length() < 50 //Should we truncate?
                                         && !currentValue.startsWith("http")
                                         && !currentValue.equalsIgnoreCase("TRUE")
                                         && !currentValue.equalsIgnoreCase("FALSE")) {
@@ -1161,8 +1160,7 @@ public class Harvester implements Runnable {
                         if (willNormalizeProp && normalizeProp.containsKey(property)) {
                                 property = normalizeProp.get(property);
                                 if (jsonMap.containsKey(property)) {
-                                        //Needs some testing here. 
-                                        //Hemed, 2016-02-17. Also deal with Cast Exception.
+                                        //Needs some testing here.
                                         if (jsonMap.get(property) instanceof ArrayList) {
                                                 ArrayList<String> values = (ArrayList<String>) jsonMap.get(property);
                                                 values.addAll(results);
@@ -1194,7 +1192,7 @@ public class Harvester implements Runnable {
                                 }
                         }
                 }
-
+                //Put suggest filed in every document
                 if (suggestInputs.size() > 0) {
                         Map<String, Object> suggestMap = new HashMap<>();
                         suggestMap.put(EEASettings.SUGGESTION_INPUT_FIELD, suggestInputs);
@@ -1273,7 +1271,7 @@ public class Harvester implements Runnable {
 
                 }
                 //Show time taken to perfom the action 
-                String actionPerformed = updateDocuments == true ? "updated: " : "indexed: ";
+                String actionPerformed = updateDocuments == true ? "updated" : "indexed";
                 logger.info("\n==========================================="
                         + "\n\tTotal documents " + actionPerformed + ": " + bulkLength
                         + "\n\tIndex: " + indexName
@@ -1353,8 +1351,10 @@ public class Harvester implements Runnable {
         }
 
         /**
-         * If this map contains a list of only one element, then convert the
-         * list to string. 
+         * If input map contains a list of only one element, then convert the
+         * list to string.
+         * @param map input map
+         * @return a map where a value of type ArrayList that has only one element is converted to a string.
          */
         private Map<String, Object> beautify (Map<String, Object> map) {
                 for (Map.Entry<String, Object> entry : map.entrySet()) {
