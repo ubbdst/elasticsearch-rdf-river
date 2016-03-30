@@ -1,22 +1,16 @@
 package org.elasticsearch.river.eea_rdf;
 
-import java.util.Arrays;
 import org.elasticsearch.client.Client;
-
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
-
-import org.elasticsearch.river.AbstractRiverComponent;
-import org.elasticsearch.river.eea_rdf.support.Harvester;
+import org.elasticsearch.river.*;
 import org.elasticsearch.river.eea_rdf.settings.EEASettings;
-import org.elasticsearch.river.River;
-import org.elasticsearch.river.RiverIndexName;
-import org.elasticsearch.river.RiverName;
-import org.elasticsearch.river.RiverSettings;
+import org.elasticsearch.river.eea_rdf.support.Harvester;
 
-import java.util.Map;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -103,10 +97,10 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 				.rdfAddUriForResource(XContentMapValues.nodeBooleanValue(
 						rdfSettings.get("includeResourceURI"),
 						EEASettings.DEFAULT_ADD_URI))
-				/**.rdfURIDescription(XContentMapValues.nodeStringValue(
+				 /*.rdfURIDescription(XContentMapValues.nodeStringValue(
 						rdfSettings.get("uriDescription"),
 						EEASettings.DEFAULT_URI_DESCRIPTION))
-                                **/
+                 */
 				.rdfSyncConditions(XContentMapValues.nodeStringValue(
 						rdfSettings.get("syncConditions"),
 						EEASettings.DEFAULT_SYNC_COND))

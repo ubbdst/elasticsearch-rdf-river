@@ -1,6 +1,8 @@
 *.class
 run
 release
+/.idea/
+*.iml
 /target/
 /src/test/java/org/elasticsearch/plugin/
 /src/main/java/org/elasticsearch/river/eea_rdf/settings/EEASettings.class
