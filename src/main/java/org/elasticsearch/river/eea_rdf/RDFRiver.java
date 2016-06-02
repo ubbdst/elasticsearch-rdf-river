@@ -11,6 +11,7 @@ import org.elasticsearch.river.eea_rdf.support.Harvester;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  *
@@ -142,6 +143,9 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 		}
 		if(rdfSettings.containsKey("whiteMap")) {
 			harvester.rdfWhiteMap(getStrObjMapFromSettings(rdfSettings, "whiteMap"));
+		}
+		if(rdfSettings.containsKey("suggestPropList")){
+			harvester.setSuggestionList(getStrListFromSettings(rdfSettings, "suggestPropList"));
 		}
 
 		if(settings.settings().containsKey("index")){

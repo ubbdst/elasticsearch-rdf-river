@@ -47,6 +47,7 @@ public class Harvester implements Runnable {
         private Boolean indexAll = true;
         private String startTime;
         private Set<String> rdfUrls;
+        private Set<String> suggestPropList;
         private String rdfEndpoint;
         private String tdbLocation;
         private List<String> rdfQueries;
@@ -54,6 +55,7 @@ public class Harvester implements Runnable {
         private List<String> rdfPropList;
         private Boolean rdfListType = false;
         private Boolean hasList = false;
+        private boolean isAutoSuggestionEnabled = false;
         private Map<String, String> normalizeProp;
         private Map<String, String> normalizeObj;
         private Map<String, String> normalizeMissing;
@@ -187,6 +189,18 @@ public class Harvester implements Runnable {
                 if (!list.isEmpty()) {
                         hasList = true;
                         rdfPropList = new ArrayList<String>(list);
+                }
+                return this;
+        }
+        
+        
+        /**
+         * Set auto suggestion list
+         **/
+        public Harvester setSuggestionList(List<String> suggestProperties){
+                if(!suggestProperties.isEmpty()){
+                        isAutoSuggestionEnabled = true;
+                        suggestPropList = new HashSet<>(suggestProperties);
                 }
                 return this;
         }
@@ -755,7 +769,7 @@ public class Harvester implements Runnable {
                 }
 
                 /* Prepare a series of bulk uris to be described so we can make
-		 * a smaller number of calls to the SPARQL endpoint. */
+		         * a smaller number of calls to the SPARQL endpoint. */
                 ArrayList<ArrayList<String>> bulks = new ArrayList<ArrayList<String>>();
                 ArrayList<String> currentBulk = new ArrayList<String>();
 
@@ -1044,7 +1058,7 @@ public class Harvester implements Runnable {
                                 Model model = getModel(qexec);
                                 addModelToES(model, client.prepareBulk());
                         } catch (Exception e) {
-                                logger.error("Exception [{}] occured while harvesting",
+                                logger.error("Exception [{}] occured while harvesting using TDB",
                                         e.getLocalizedMessage());
                         } finally {
                                 qexec.close();
@@ -1123,12 +1137,18 @@ public class Harvester implements Runnable {
                                         }
                                 }
                                 //Add values to suggest field for auto suggestion.
-                                if (Strings.hasText(currentValue)
-                                        && !currentValue.startsWith("http")
-                                        && !currentValue.equalsIgnoreCase("TRUE")
-                                        && !currentValue.equalsIgnoreCase("FALSE")) {
+                                if (isAutoSuggestionEnabled && suggestPropList.contains(property) && Strings.hasText(currentValue)) {
+                                        //Filter the value, such that it should not contain weird characters
+                                        if(!currentValue.startsWith("http") && currentValue.length() <= 50) {
 
-                                        suggestInputs.add(currentValue);
+                                                //Replace possible illegal characters
+                                                currentValue = currentValue.replace('/', ' ');
+                                                currentValue = currentValue.replace('[' , ' ');
+                                                currentValue = currentValue.replace(']' , ' ');
+
+                                                //Add the value to the list
+                                                suggestInputs.add(currentValue);
+                                        }
                                 }
 
                                 // If either whiteMap does contains shortValue
@@ -1156,7 +1176,8 @@ public class Harvester implements Runnable {
                         if (results.isEmpty()) {
                                 continue;
                         }
-
+                        
+                        //Normalize properties
                         if (willNormalizeProp && normalizeProp.containsKey(property)) {
                                 property = normalizeProp.get(property);
                                 if (jsonMap.containsKey(property)) {
@@ -1193,7 +1214,7 @@ public class Harvester implements Runnable {
                         }
                 }
                 //Put suggest filed in every document
-                if (suggestInputs.size() > 0) {
+                if (isAutoSuggestionEnabled && suggestInputs.size() > 0) {
                         Map<String, Object> suggestMap = new HashMap<>();
                         suggestMap.put(EEASettings.SUGGESTION_INPUT_FIELD, suggestInputs);
                         jsonMap.put(EEASettings.SUGGESTION_FIELD, suggestMap);
