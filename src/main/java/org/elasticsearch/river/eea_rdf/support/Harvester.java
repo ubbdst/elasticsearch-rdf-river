@@ -1550,6 +1550,8 @@ public class Harvester implements Runnable {
          * "<http://www.w3.org/2004/02/skos/core#prefLabel> ?prefLabel } " +
          * "BIND(COALESCE(?foafName,?rdfLabel,?prefLabel) AS ?label) " + "}} "
          *
+         * @return SPARQL query as a string
+         *
          *
          */
         private String getInnerQueryForLabel(String uri) {
@@ -1560,7 +1562,7 @@ public class Harvester implements Runnable {
                 String labelCoalesce = "";
 
                 //This is too specific to the University of Bergen Library´s Ontology.
-                //In the future, you might want to let the default language be autmatically picked up.
+                //In the future, you might want to let the default language be automatically picked up.
                 String filter = "FILTER (langMatches(lang(?label), \"\") || langMatches(lang(?label), \"no\")) ";
 
                 //Iterate over the list and build up the options.
@@ -1577,6 +1579,18 @@ public class Harvester implements Runnable {
                 String innerQuery = "SELECT ?label "
                         + "WHERE { GRAPH ?G { " + options + bind + "} " + filter + "} " + "LIMIT 1";
                 return innerQuery;
+        }
+
+        //Main method for easy debugging ..
+        public static void main(String args[]){
+                String currentValue = "[D/S Fimann Mbowe]";
+
+                //Replace possible illegal characters
+                currentValue = currentValue.replace('/', ' ');
+                currentValue = currentValue.replace('[' , ' ');
+                currentValue = currentValue.replace(']' , ' ');
+
+                System.out.println("New Value: " + currentValue);
         }
 
 }

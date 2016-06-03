@@ -60,7 +60,7 @@ public class HarvesterTest extends TestCase {
 	@Test
 	public void testgetLabelForUri() throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException, NoSuchFieldException {
 		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
-		Method method = test.getClass().getDeclaredMethod("getLabelForUri", String.class);
+		Method method = test.getClass().getDeclaredMethod("getLabelForUriFromTDB", String.class);
 		method.setAccessible(true);
 		
 		Field uDL = test.getClass().getDeclaredField("uriDescriptionList");
@@ -152,7 +152,7 @@ public class HarvesterTest extends TestCase {
 		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
-		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUri", String.class);
+		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUriFromTDB", String.class);
 		othermethod.setAccessible(true);
 				
 		Harvester harvester = mock(Harvester.class);
@@ -217,7 +217,7 @@ public class HarvesterTest extends TestCase {
 		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
-		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUri", String.class);
+		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUriFromTDB", String.class);
 		othermethod.setAccessible(true);
 				
 		Harvester harvester = mock(Harvester.class);
@@ -249,7 +249,7 @@ public class HarvesterTest extends TestCase {
 		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
-		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUri", String.class);
+		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUriFromTDB", String.class);
 		othermethod.setAccessible(true);
 				
 		Harvester harvester = mock(Harvester.class);
@@ -281,7 +281,7 @@ public class HarvesterTest extends TestCase {
 		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
-		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUri", String.class);
+		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUriFromTDB", String.class);
 		othermethod.setAccessible(true);
 				
 		Harvester harvester = mock(Harvester.class);
@@ -313,7 +313,7 @@ public class HarvesterTest extends TestCase {
 		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
-		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUri", String.class);
+		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUriFromTDB", String.class);
 		othermethod.setAccessible(true);
 				
 		Harvester harvester = mock(Harvester.class);

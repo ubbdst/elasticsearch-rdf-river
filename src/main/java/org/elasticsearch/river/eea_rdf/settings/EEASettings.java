@@ -31,6 +31,11 @@ public abstract class EEASettings {
             "\"http://purl.org/dc/terms/title\", " +
             "\"http://www.w3.org/1999/02/22-rdf-syntax-ns#about\", " +
             "\"language\", \"topic\"]";
+    public final static String DEFAULT_SUGGEST_PROP_LIST = "[" +
+            "\"http://purl.org/dc/terms/spatial\", " +
+            "\"http://purl.org/dc/terms/creator\", " +
+            "\"http://www.w3.org/1999/02/22-rdf-syntax-ns#type\", " +
+            "\"http://www.w3.org/1999/02/22-rdf-syntax-ns#about\"" + "]";
     public final static String DEFAULT_RESOURCE_URI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#about";
     public final static String DEFAULT_LIST_TYPE = "white";
     public final static Boolean DEFAULT_ADD_LANGUAGE = true;
