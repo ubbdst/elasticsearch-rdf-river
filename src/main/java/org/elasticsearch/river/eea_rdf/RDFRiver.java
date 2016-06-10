@@ -142,10 +142,9 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         if (rdfSettings.containsKey("whiteMap")) {
             harvester.rdfWhiteMap(getStrObjMapFromSettings(rdfSettings, "whiteMap"));
         }
-        if (rdfSettings.containsKey("suggestPropList")) {
-            harvester.setSuggestionList(getStrListFromSettings(rdfSettings, "suggestPropList"));
-        }
-
+        /**if (rdfSettings.containsKey("suggestPropList")) {
+           harvester.setSuggestionList(getStrListFromSettings(rdfSettings, "suggestPropList"));
+        }**/
         if (settings.settings().containsKey("index")) {
             Map<String, Object> indexSettings = extractSettings(settings, "index");
             harvester.index(XContentMapValues.nodeStringValue(

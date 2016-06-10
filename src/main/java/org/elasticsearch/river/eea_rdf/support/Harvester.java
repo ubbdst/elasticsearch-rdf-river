@@ -55,7 +55,7 @@ public class Harvester implements Runnable {
         private List<String> rdfPropList;
         private Boolean rdfListType = false;
         private Boolean hasList = false;
-        private boolean isAutoSuggestionEnabled = false;
+        private boolean isAutoSuggestionEnabled = true; /**false;**/
         private Map<String, String> normalizeProp;
         private Map<String, String> normalizeObj;
         private Map<String, String> normalizeMissing;
@@ -1137,16 +1137,22 @@ public class Harvester implements Runnable {
                                         }
                                 }
                                 //Add values to suggest field for auto suggestion.
-                                if (isAutoSuggestionEnabled && suggestPropList.contains(property) && Strings.hasText(currentValue)) {
+                                if (isAutoSuggestionEnabled  && Strings.hasText(currentValue) /**&& suggestPropList.contains(property)**/) {
+                       
                                         //Filter the value, such that it should not contain weird characters
-                                        if(!currentValue.startsWith("http") && currentValue.length() <= 50) {
+                                        if(!currentValue.startsWith("http") && currentValue.length() <= 50
+                                            && Character.isLetter(currentValue.charAt(0))) {
 
-                                                //Replace possible illegal characters
-                                                currentValue = currentValue.replace('/', ' ');
-                                                currentValue = currentValue.replace('[' , ' ');
-                                                currentValue = currentValue.replace(']' , ' ');
+                                                //Replace possible illegal characters with empty space. 
+                                                //These characters have special meaning in Elasticsearch,
+                                                // so we remove them in a suggestion list.
+                                                currentValue = currentValue
+                                                        .replace('/', ' ')
+                                                        .replace(':', ' ')
+                                                        .replace('[' , ' ')
+                                                        .replace(']' , ' ');
 
-                                                //Add the value to the list
+                                                //Add value to the list
                                                 suggestInputs.add(currentValue);
                                         }
                                 }
@@ -1214,7 +1220,7 @@ public class Harvester implements Runnable {
                         }
                 }
                 //Put suggest filed in every document
-                if (isAutoSuggestionEnabled && suggestInputs.size() > 0) {
+                if (suggestInputs.size() > 0) {
                         Map<String, Object> suggestMap = new HashMap<>();
                         suggestMap.put(EEASettings.SUGGESTION_INPUT_FIELD, suggestInputs);
                         jsonMap.put(EEASettings.SUGGESTION_FIELD, suggestMap);
@@ -1583,14 +1589,17 @@ public class Harvester implements Runnable {
 
         //Main method for easy debugging ..
         public static void main(String args[]){
-                String currentValue = "[D/S Fimann Mbowe]";
+                String currentValue = "[D/S Fimann Mbowe, author:Juma]";
 
                 //Replace possible illegal characters
-                currentValue = currentValue.replace('/', ' ');
-                currentValue = currentValue.replace('[' , ' ');
-                currentValue = currentValue.replace(']' , ' ');
+                currentValue = currentValue
+                        .replace('/', ' ')
+                        .replace('[' , ' ')
+                        .replace(']' , ' ')
+                        .replace(':' , ' ');
 
                 System.out.println("New Value: " + currentValue);
+                System.out.println(Character.isLetter('/'));
         }
 
 }
