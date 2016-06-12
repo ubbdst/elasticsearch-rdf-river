@@ -1124,6 +1124,7 @@ public class Harvester implements Runnable {
 
                         String lang;
                         String currentValue;
+                        String suggestValue;
 
                         while (niter.hasNext()) {
                                 RDFNode node = niter.next();
@@ -1142,18 +1143,19 @@ public class Harvester implements Runnable {
                                         //Filter the value, such that it should not contain weird characters
                                         if(!currentValue.startsWith("http") && currentValue.length() <= 50
                                             && Character.isLetter(currentValue.charAt(0))) {
+                                                suggestValue = currentValue;
 
                                                 //Replace possible illegal characters with empty space. 
                                                 //These characters have special meaning in Elasticsearch,
                                                 // so we remove them in a suggestion list.
-                                                currentValue = currentValue
+                                                suggestValue = suggestValue
                                                         .replace('/', ' ')
                                                         .replace(':', ' ')
                                                         .replace('[' , ' ')
                                                         .replace(']' , ' ');
 
                                                 //Add value to the list
-                                                suggestInputs.add(currentValue);
+                                                suggestInputs.add(suggestValue);
                                         }
                                 }
 
