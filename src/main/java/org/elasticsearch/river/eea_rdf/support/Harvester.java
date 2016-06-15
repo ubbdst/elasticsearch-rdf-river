@@ -47,6 +47,7 @@ public class Harvester implements Runnable {
         private Boolean indexAll = true;
         private String startTime;
         private Set<String> rdfUrls;
+        private Set<String> suggestPropList;
         private String rdfEndpoint;
         private String tdbLocation;
         private List<String> rdfQueries;
@@ -54,6 +55,7 @@ public class Harvester implements Runnable {
         private List<String> rdfPropList;
         private Boolean rdfListType = false;
         private Boolean hasList = false;
+        private boolean isAutoSuggestionEnabled = true; /**false;**/
         private Map<String, String> normalizeProp;
         private Map<String, String> normalizeObj;
         private Map<String, String> normalizeMissing;
@@ -187,6 +189,18 @@ public class Harvester implements Runnable {
                 if (!list.isEmpty()) {
                         hasList = true;
                         rdfPropList = new ArrayList<String>(list);
+                }
+                return this;
+        }
+        
+        
+        /**
+         * Set auto suggestion list
+         **/
+        public Harvester setSuggestionList(List<String> suggestProperties){
+                if(!suggestProperties.isEmpty()){
+                        isAutoSuggestionEnabled = true;
+                        suggestPropList = new HashSet<>(suggestProperties);
                 }
                 return this;
         }
@@ -755,7 +769,7 @@ public class Harvester implements Runnable {
                 }
 
                 /* Prepare a series of bulk uris to be described so we can make
-		 * a smaller number of calls to the SPARQL endpoint. */
+		         * a smaller number of calls to the SPARQL endpoint. */
                 ArrayList<ArrayList<String>> bulks = new ArrayList<ArrayList<String>>();
                 ArrayList<String> currentBulk = new ArrayList<String>();
 
@@ -1044,7 +1058,7 @@ public class Harvester implements Runnable {
                                 Model model = getModel(qexec);
                                 addModelToES(model, client.prepareBulk());
                         } catch (Exception e) {
-                                logger.error("Exception [{}] occured while harvesting",
+                                logger.error("Exception [{}] occured while harvesting using TDB",
                                         e.getLocalizedMessage());
                         } finally {
                                 qexec.close();
@@ -1110,6 +1124,7 @@ public class Harvester implements Runnable {
 
                         String lang;
                         String currentValue;
+                        String suggestValue;
 
                         while (niter.hasNext()) {
                                 RDFNode node = niter.next();
@@ -1123,12 +1138,25 @@ public class Harvester implements Runnable {
                                         }
                                 }
                                 //Add values to suggest field for auto suggestion.
-                                if (Strings.hasText(currentValue)
-                                        && !currentValue.startsWith("http")
-                                        && !currentValue.equalsIgnoreCase("TRUE")
-                                        && !currentValue.equalsIgnoreCase("FALSE")) {
+                                if (isAutoSuggestionEnabled  && Strings.hasText(currentValue) /**&& suggestPropList.contains(property)**/) {
+                       
+                                        //Filter the value, such that it should not contain weird characters
+                                        if(!currentValue.startsWith("http") && currentValue.length() <= 50
+                                            && Character.isLetter(currentValue.charAt(0))) {
+                                                suggestValue = currentValue;
 
-                                        suggestInputs.add(currentValue);
+                                                //Replace possible illegal characters with empty space. 
+                                                //These characters have special meaning in Elasticsearch,
+                                                // so we remove them in a suggestion list.
+                                                suggestValue = suggestValue
+                                                        .replace('/', ' ')
+                                                        .replace(':', ' ')
+                                                        .replace('[' , ' ')
+                                                        .replace(']' , ' ');
+
+                                                //Add value to the list
+                                                suggestInputs.add(suggestValue);
+                                        }
                                 }
 
                                 // If either whiteMap does contains shortValue
@@ -1156,7 +1184,8 @@ public class Harvester implements Runnable {
                         if (results.isEmpty()) {
                                 continue;
                         }
-
+                        
+                        //Normalize properties
                         if (willNormalizeProp && normalizeProp.containsKey(property)) {
                                 property = normalizeProp.get(property);
                                 if (jsonMap.containsKey(property)) {
@@ -1529,6 +1558,8 @@ public class Harvester implements Runnable {
          * "<http://www.w3.org/2004/02/skos/core#prefLabel> ?prefLabel } " +
          * "BIND(COALESCE(?foafName,?rdfLabel,?prefLabel) AS ?label) " + "}} "
          *
+         * @return SPARQL query as a string
+         *
          *
          */
         private String getInnerQueryForLabel(String uri) {
@@ -1539,7 +1570,7 @@ public class Harvester implements Runnable {
                 String labelCoalesce = "";
 
                 //This is too specific to the University of Bergen Library´s Ontology.
-                //In the future, you might want to let the default language be autmatically picked up.
+                //In the future, you might want to let the default language be automatically picked up.
                 String filter = "FILTER (langMatches(lang(?label), \"\") || langMatches(lang(?label), \"no\")) ";
 
                 //Iterate over the list and build up the options.
@@ -1556,6 +1587,21 @@ public class Harvester implements Runnable {
                 String innerQuery = "SELECT ?label "
                         + "WHERE { GRAPH ?G { " + options + bind + "} " + filter + "} " + "LIMIT 1";
                 return innerQuery;
+        }
+
+        //Main method for easy debugging ..
+        public static void main(String args[]){
+                String currentValue = "[D/S Fimann Mbowe, author:Juma]";
+
+                //Replace possible illegal characters
+                currentValue = currentValue
+                        .replace('/', ' ')
+                        .replace('[' , ' ')
+                        .replace(']' , ' ')
+                        .replace(':' , ' ');
+
+                System.out.println("New Value: " + currentValue);
+                System.out.println(Character.isLetter('/'));
         }
 
 }
