@@ -77,6 +77,7 @@ public class Harvester implements Runnable {
         private Boolean syncOldData;
         private Boolean updateDocuments;
         private long numberOfBulkActions;
+        private int maxSuggestInputLength;
 
         private Client client;
         private String indexName;
@@ -484,6 +485,14 @@ public class Harvester implements Runnable {
          */
         public Harvester rdfNumberOfBulkActions(long bulkActions) {
                 this.numberOfBulkActions = bulkActions;
+                return this;
+        }
+
+        public Harvester maxSuggestInputLength(int length){
+                if(length < 0) {
+                        throw new IllegalArgumentException("Expected positive number for maxSuggestInputLength but found [ " + length + "]");
+                }
+                this.maxSuggestInputLength = length;
                 return this;
         }
 
@@ -1152,10 +1161,9 @@ public class Harvester implements Runnable {
                                 if (isAutoSuggestionEnabled  && Strings.hasText(currentValue) /**&& suggestPropList.contains(property)**/) {
                        
                                         //Filter the value, such that it should not contain weird characters
-                                        if(!currentValue.startsWith("http") && currentValue.length() <= 50
-                                            && Character.isLetter(currentValue.charAt(0))) {
+                                        if(!currentValue.startsWith("http") && currentValue.length() <= maxSuggestInputLength
+                                                && Character.isLetter(currentValue.charAt(0))) {
                                                 suggestValue = currentValue;
-
                                                 if(removeIllegalCharsForSuggestion) {
                                                         //Replace possible illegal characters with empty space.
                                                         //These characters have special meaning in Elasticsearch,
@@ -1166,7 +1174,6 @@ public class Harvester implements Runnable {
                                                                 .replace('[', ' ')
                                                                 .replace(']', ' ');
                                                 }
-
                                                 //Add value to the list
                                                 suggestInputs.add(suggestValue);
                                         }

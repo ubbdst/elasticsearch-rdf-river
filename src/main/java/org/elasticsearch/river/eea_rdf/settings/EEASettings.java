@@ -19,6 +19,7 @@ public abstract class EEASettings {
     public final static String SUGGESTION_PAYLOAD_FIELD = "payload";
 
     public final static int DEFAULT_NUMBER_OF_BULK_ACTIONS = 100;
+    public final static int DEFAULT_MAX_SUGGEST_INPUT_LENGTH = 50;
     public final static int DEFAULT_NUMBER_OF_RETRY = 5;
     public final static int DEFAULT_BULK_REQ = 30;
     public final static List<String> DEFAULT_QUERIES = new ArrayList<>();
