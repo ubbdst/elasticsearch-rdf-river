@@ -98,6 +98,12 @@ public class RDFRiver extends AbstractRiverComponent implements River {
                 .rdfAddUriForResource(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("includeResourceURI"),
                         EEASettings.DEFAULT_ADD_URI))
+                .removeIllegalCharsForSuggestion(XContentMapValues.nodeBooleanValue(
+                        rdfSettings.get("removeIllegalCharsForSuggestion"),
+                        true))
+                .maxSuggestInputLength(XContentMapValues.nodeIntegerValue(
+                        rdfSettings.get("maxSuggestInputLength"),
+                        EEASettings.DEFAULT_MAX_SUGGEST_INPUT_LENGTH))
                  /*.rdfURIDescription(XContentMapValues.nodeStringValue(
 						rdfSettings.get("uriDescription"),
 						EEASettings.DEFAULT_URI_DESCRIPTION))

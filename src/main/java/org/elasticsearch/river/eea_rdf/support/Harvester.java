@@ -30,9 +30,9 @@ import java.util.*;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 /**
- * @author EEA <br>
+ * @author European Environment Agency (EEA) <br>
  * Customized to accommodate requests from the University of Bergen Library.<br>
- * Hemed Ali, 09-03-2015
+ * by Hemed Ali, 09-03-2015
  */
 public class Harvester implements Runnable {
 
@@ -55,7 +55,8 @@ public class Harvester implements Runnable {
         private List<String> rdfPropList;
         private Boolean rdfListType = false;
         private Boolean hasList = false;
-        private boolean isAutoSuggestionEnabled = true; /**false;**/
+        private boolean isAutoSuggestionEnabled = true;
+        private Boolean removeIllegalCharsForSuggestion = true;
         private Map<String, String> normalizeProp;
         private Map<String, String> normalizeObj;
         private Map<String, String> normalizeMissing;
@@ -76,6 +77,7 @@ public class Harvester implements Runnable {
         private Boolean syncOldData;
         private Boolean updateDocuments;
         private long numberOfBulkActions;
+        private int maxSuggestInputLength;
 
         private Client client;
         private String indexName;
@@ -202,6 +204,16 @@ public class Harvester implements Runnable {
                         isAutoSuggestionEnabled = true;
                         suggestPropList = new HashSet<>(suggestProperties);
                 }
+                return this;
+        }
+
+
+        /**
+         * Remove illegal characters in the suggestion input.
+         * Default to true;
+         ***/
+        public Harvester removeIllegalCharsForSuggestion(boolean flag){
+                this.removeIllegalCharsForSuggestion = flag;
                 return this;
         }
 
@@ -473,6 +485,14 @@ public class Harvester implements Runnable {
          */
         public Harvester rdfNumberOfBulkActions(long bulkActions) {
                 this.numberOfBulkActions = bulkActions;
+                return this;
+        }
+
+        public Harvester maxSuggestInputLength(int length){
+                if(length < 0) {
+                        throw new IllegalArgumentException("Expected positive number for maxSuggestInputLength but found [ " + length + "]");
+                }
+                this.maxSuggestInputLength = length;
                 return this;
         }
 
@@ -1141,19 +1161,19 @@ public class Harvester implements Runnable {
                                 if (isAutoSuggestionEnabled  && Strings.hasText(currentValue) /**&& suggestPropList.contains(property)**/) {
                        
                                         //Filter the value, such that it should not contain weird characters
-                                        if(!currentValue.startsWith("http") && currentValue.length() <= 50
-                                            && Character.isLetter(currentValue.charAt(0))) {
+                                        if(!currentValue.startsWith("http") && currentValue.length() <= maxSuggestInputLength
+                                                && Character.isLetter(currentValue.charAt(0))) {
                                                 suggestValue = currentValue;
-
-                                                //Replace possible illegal characters with empty space. 
-                                                //These characters have special meaning in Elasticsearch,
-                                                // so we remove them in a suggestion list.
-                                                suggestValue = suggestValue
-                                                        .replace('/', ' ')
-                                                        .replace(':', ' ')
-                                                        .replace('[' , ' ')
-                                                        .replace(']' , ' ');
-
+                                                if(removeIllegalCharsForSuggestion) {
+                                                        //Replace possible illegal characters with empty space.
+                                                        //These characters have special meaning in Elasticsearch,
+                                                        // so we remove them in a suggestion list.
+                                                        suggestValue = suggestValue
+                                                                .replace('/', ' ')
+                                                                .replace(':', ' ')
+                                                                .replace('[', ' ')
+                                                                .replace(']', ' ');
+                                                }
                                                 //Add value to the list
                                                 suggestInputs.add(suggestValue);
                                         }
@@ -1579,7 +1599,7 @@ public class Harvester implements Runnable {
                         options += "OPTIONAL { <" + uri + "> " + "<" + property + "> " + label + " } ";
                         labelCoalesce += label + ",";
                 }
-                //Build up coalesce string, this function checks the label for the first occurance in sequencial order,
+                //Build up coalesce string, this function checks the label for the first occurrence in sequential order,
                 //and if the label was not found, it checks for the next one.
                 bind += "BIND(COALESCE(" + labelCoalesce.substring(0, labelCoalesce.length() - 1) + ") AS ?label) ";
 
