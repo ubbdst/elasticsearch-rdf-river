@@ -1162,7 +1162,9 @@ public class Harvester implements Runnable {
                        
                                         //Filter the value, such that it should not contain weird characters
                                         if(!currentValue.startsWith("http") && currentValue.length() <= maxSuggestInputLength
+                                                && !currentValue.equals("true") && !currentValue.equals("false")
                                                 && Character.isLetter(currentValue.charAt(0))) {
+
                                                 suggestValue = currentValue;
                                                 if(removeIllegalCharsForSuggestion) {
                                                         //Replace possible illegal characters with empty space.
@@ -1172,7 +1174,8 @@ public class Harvester implements Runnable {
                                                                 .replace('/', ' ')
                                                                 .replace(':', ' ')
                                                                 .replace('[', ' ')
-                                                                .replace(']', ' ');
+                                                                .replace('[', ' ')
+                                                                .replace('?', ' ');
                                                 }
                                                 //Add value to the list
                                                 suggestInputs.add(suggestValue.toLowerCase());
