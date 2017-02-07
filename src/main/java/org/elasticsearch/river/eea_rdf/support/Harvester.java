@@ -1175,7 +1175,7 @@ public class Harvester implements Runnable {
                                                                 .replace(']', ' ');
                                                 }
                                                 //Add value to the list
-                                                suggestInputs.add(suggestValue);
+                                                suggestInputs.add(suggestValue.toLowerCase());
                                         }
                                 }
 
