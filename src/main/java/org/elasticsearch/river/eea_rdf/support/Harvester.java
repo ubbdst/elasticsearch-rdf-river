@@ -1175,7 +1175,7 @@ public class Harvester implements Runnable {
                                                                 .replace(':', ' ')
                                                                 .replace('[', ' ')
                                                                 .replace('[', ' ')
-								.replace('.', '')
+                                                                .replace('.', ' ')
                                                                 .replace('?', ' ');
                                                 }
                                                 //Add value to the list
