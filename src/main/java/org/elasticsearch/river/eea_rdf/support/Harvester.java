@@ -1162,19 +1162,20 @@ public class Harvester implements Runnable {
                        
                                         //Filter the value, such that it should not contain weird characters
                                         if(!currentValue.startsWith("http") && currentValue.length() <= maxSuggestInputLength
-                                                && !currentValue.equals("true") && !currentValue.equals("false")
+                                                && !currentValue.equalsIgnoreCase("true") && !currentValue.equalsIgnoreCase("false")
                                                 && Character.isLetter(currentValue.charAt(0))) {
 
                                                 suggestValue = currentValue;
                                                 if(removeIllegalCharsForSuggestion) {
                                                         //Replace possible illegal characters with empty space.
                                                         //These characters have special meaning in Elasticsearch,
-                                                        // so we remove them in a suggestion list.
+                                                        //so we remove them in a suggestion list.
                                                         suggestValue = suggestValue
                                                                 .replace('/', ' ')
                                                                 .replace(':', ' ')
                                                                 .replace('[', ' ')
                                                                 .replace('[', ' ')
+								.replace('.', '')
                                                                 .replace('?', ' ');
                                                 }
                                                 //Add value to the list
