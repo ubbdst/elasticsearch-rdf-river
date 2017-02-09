@@ -1179,7 +1179,7 @@ public class Harvester implements Runnable {
                                                                 .replace('?', ' ');
                                                 }
                                                 //Add value to the list
-                                                suggestInputs.add(suggestValue.toLowerCase());
+                                                suggestInputs.add(suggestValue.trim().toLowerCase());
                                         }
                                 }
 
