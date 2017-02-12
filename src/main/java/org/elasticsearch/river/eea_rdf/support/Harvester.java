@@ -1176,10 +1176,11 @@ public class Harvester implements Runnable {
                                                                 .replace('[', ' ')
                                                                 .replace(']', ' ')
                                                                 .replace('.', ' ')
-                                                                .replace('?', ' ');
+                                                                .replace('?', ' ')
+                                                                .trim();
                                                 }
                                                 //Add value to the list
-                                                suggestInputs.add(suggestValue.trim().toLowerCase());
+                                                suggestInputs.add(suggestValue.toLowerCase());
                                         }
                                 }
 
@@ -1615,16 +1616,19 @@ public class Harvester implements Runnable {
 
         //Main method for easy debugging ..
         public static void main(String args[]){
-                String currentValue = "[D/S Fimann Mbowe, author:Juma]";
+                String currentValue = "[D/S Fimann Mbowe, author:Juma]. ";
 
                 //Replace possible illegal characters
                 currentValue = currentValue
                         .replace('/', ' ')
-                        .replace('[' , ' ')
-                        .replace(']' , ' ')
-                        .replace(':' , ' ');
+                        .replace(':', ' ')
+                        .replace('[', ' ')
+                        .replace(']', ' ')
+                        .replace('.', ' ')
+                        .replace('?', ' ')
+                        .trim();
 
-                System.out.println("New Value: " + currentValue);
+                System.out.println("New Value: " + "\"" +  currentValue + "\"");
                 System.out.println(Character.isLetter('/'));
         }
 
