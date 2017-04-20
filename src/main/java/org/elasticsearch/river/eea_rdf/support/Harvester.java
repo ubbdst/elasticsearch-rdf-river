@@ -1135,7 +1135,7 @@ public class Harvester implements Runnable {
                         }
                         jsonMap.put(normalizedProperty, results);
                 }
-                Set<String> rdfLanguages = new HashSet<String>();
+                Set<String> rdfLanguages = new HashSet<>();
 
                 for (Property prop : properties) {
                         NodeIterator niter = model.listObjectsOfProperty(rs, prop);
@@ -1465,7 +1465,7 @@ public class Harvester implements Runnable {
                                 quote = true;
                         }
                         catch (Exception e){
-                                logger.error(e.getLocalizedMessage());
+                                logger.error("Exception when getting literal value from a node [{}] ", e.getLocalizedMessage());
                         }
 
                 } else if (node.isResource()) {
@@ -1480,7 +1480,7 @@ public class Harvester implements Runnable {
                                 quote = true;
                         }
                         catch (Exception ex){
-                                logger.error(ex.getLocalizedMessage());
+                                logger.error("Exception when getting resource value from a node [{}]", ex.getLocalizedMessage());
                         }
                 }
 
