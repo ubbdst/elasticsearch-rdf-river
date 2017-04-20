@@ -1028,8 +1028,7 @@ public class Harvester implements Runnable {
                         try {
                                 harvest(qexec);
                         } catch (Exception e) {
-                                logger.error("Exception [{}] occured while harvesting",
-                                        e.getLocalizedMessage());
+                                logger.error("Exception [{}] occurred while harvesting", e.getLocalizedMessage());
                         } finally {
                                 qexec.close();
                         }
@@ -1075,11 +1074,12 @@ public class Harvester implements Runnable {
                         qexec = QueryExecutionFactory.create(query, dataset);
 
                         try {
+
                                 Model model = getModel(qexec);
+                                logger.info("Adding model to Elasticsearch for " );
                                 addModelToES(model, client.prepareBulk());
                         } catch (Exception e) {
-                                logger.error("Exception [{}] occured while harvesting using TDB",
-                                        e.getLocalizedMessage());
+                                logger.error("Exception [{}] occurred while harvesting using TDB", e.getLocalizedMessage());
                         } finally {
                                 qexec.close();
                                 dataset.end();
@@ -1122,7 +1122,7 @@ public class Harvester implements Runnable {
          */
         private Map<String, Object> getJsonMap(Resource rs, Set<Property> properties, Model model) {
                 Map<String, Object> jsonMap = new HashMap<>();
-                ArrayList<String> results = new ArrayList<String>();
+                List<String> results = new ArrayList<>();
                 Set<String> suggestInputs = new HashSet<>();
 
                 if (addUriForResource) {
@@ -1350,7 +1350,7 @@ public class Harvester implements Runnable {
                 }
                 for (BulkItemResponse item : response.getItems()) {
                         if (item.isFailed()) {
-                                logger.debug("Error {} occured on index {}, type {}, id {} for {} operation ", item.getFailureMessage(), item.getIndex(), item.getType(), item.getId(), item.getOpType());
+                                logger.debug("Error {} occurred on index {}, type {}, id {} for {} operation ", item.getFailureMessage(), item.getIndex(), item.getType(), item.getId(), item.getOpType());
                         }
                 }
         }
@@ -1413,7 +1413,7 @@ public class Harvester implements Runnable {
         private Map<String, Object> beautify (Map<String, Object> map) {
                 for (Map.Entry<String, Object> entry : map.entrySet()) {
                         if (entry.getValue() instanceof java.util.ArrayList) {
-                                ArrayList<String> value = (ArrayList<String>) entry.getValue();
+                                ArrayList<String> value = (ArrayList<String>)entry.getValue();
                                 if (value.size() == 1) {
                                         map.put(entry.getKey(), value.get(0));
                                 }
@@ -1464,16 +1464,24 @@ public class Harvester implements Runnable {
                                         node.asLiteral().getLexicalForm());
                                 quote = true;
                         }
+                        catch (Exception e){
+                                logger.error(e.getLocalizedMessage());
+                        }
 
                 } else if (node.isResource()) {
-                        result = node.asResource().getURI();
-                        if (toDescribeURIs) {
-                                //NOTE: We have excluded possibility of getting labels from SPARQL endpoint because
-                                //it was error-prone due to HTTP Exceptions - too many requests in less than a second 
-                                //threw BindException - Address already in use.
-                                result = getLabelForUriFromTDB(result, this.getTDBDataset());
+                        try {
+                                result = node.asResource().getURI();
+                                if (toDescribeURIs) {
+                                        //NOTE: We have excluded possibility of getting labels from SPARQL endpoint because
+                                        //it was error-prone due to HTTP Exceptions - too many requests in less than a second
+                                        //threw BindException - Address already in use.
+                                        result = getLabelForUriFromTDB(result, this.getTDBDataset());
+                                }
+                                quote = true;
                         }
-                        quote = true;
+                        catch (Exception ex){
+                                logger.error(ex.getLocalizedMessage());
+                        }
                 }
 
                 //if(quote) { result = "\"" + result + "\""; }
