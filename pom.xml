@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.elasticsearch.plugin.river.eea_rdf</groupId>
     <artifactId>eea-rdf-river-plugin</artifactId>
-    <version>1.7.3</version>
+    <version>1.7.4</version>
 
     <packaging>jar</packaging>
 
@@ -152,7 +152,7 @@
             <groupId>org.apache.jena</groupId>
             <artifactId>apache-jena-libs</artifactId>
             <type>pom</type>
-            <version>3.0.0</version>
+            <version>3.2.0</version>
         </dependency>
         
         <dependency>

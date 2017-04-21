@@ -826,7 +826,7 @@ public class Harvester implements Runnable {
                                          */
                                         boolean oldToDescribeURIs = toDescribeURIs;
                                         toDescribeURIs = false;
-                                        addModelToES(constructModel, bulkRequest);
+                                        addModelToElasticsearch(constructModel, bulkRequest);
                                         toDescribeURIs = oldToDescribeURIs;
                                         count += bulk.size();
                                 } catch (Exception e) {
@@ -985,7 +985,7 @@ public class Harvester implements Runnable {
                         retry = false;
                         try {
                                 Model model = getModel(qexec);
-                                addModelToES(model, client.prepareBulk());
+                                addModelToElasticsearch(model, client.prepareBulk());
                         } catch (QueryExceptionHTTP httpe) {
                                 if (httpe.getResponseCode() >= 500) {
                                         retry = true;
@@ -1003,7 +1003,6 @@ public class Harvester implements Runnable {
          * {@link #rdfQueries} and harvests the results of the query.
          */
         private void harvestFromEndpoint() {
-
                 Query query;
                 QueryExecution qexec;
 
@@ -1020,15 +1019,14 @@ public class Harvester implements Runnable {
                                         rdfQuery, qpe);
                                 continue;
                         }
-                        //Dataset dataset = TDBFactory.createDataset("D:\\marcus-admin-tdb");
-                        //qexec = QueryExecutionFactory.create(query, dataset); 
-
                         qexec = QueryExecutionFactory.sparqlService(rdfEndpoint, query);
 
                         try {
                                 harvest(qexec);
                         } catch (Exception e) {
                                 logger.error("Exception [{}] occurred while harvesting", e.getLocalizedMessage());
+                                e.printStackTrace();
+
                         } finally {
                                 qexec.close();
                         }
@@ -1040,7 +1038,6 @@ public class Harvester implements Runnable {
          * list.
          */
         private void harvestFromTDB() {
-
                 Query query;
                 QueryExecution qexec;
                 Dataset dataset;
@@ -1074,12 +1071,12 @@ public class Harvester implements Runnable {
                         qexec = QueryExecutionFactory.create(query, dataset);
 
                         try {
-
                                 Model model = getModel(qexec);
-                                logger.info("Adding model to Elasticsearch for " );
-                                addModelToES(model, client.prepareBulk());
+                                addModelToElasticsearch(model, client.prepareBulk());
                         } catch (Exception e) {
                                 logger.error("Exception [{}] occurred while harvesting using TDB", e.getLocalizedMessage());
+                                e.printStackTrace();
+
                         } finally {
                                 qexec.close();
                                 dataset.end();
@@ -1102,7 +1099,7 @@ public class Harvester implements Runnable {
                         try {
                                 RDFDataMgr.read(model, url.trim(), RDFLanguages.RDFXML);
                                 BulkRequestBuilder bulkRequest = client.prepareBulk();
-                                addModelToES(model, bulkRequest);
+                                addModelToElasticsearch(model, bulkRequest);
                         } catch (RiotException re) {
                                 logger.error("Illegal xml character [{}]", re.getLocalizedMessage());
                         } catch (Exception e) {
@@ -1148,7 +1145,13 @@ public class Harvester implements Runnable {
 
                         while (niter.hasNext()) {
                                 RDFNode node = niter.next();
-                                currentValue = getStringForResult(node);
+                                currentValue = getStringForResult(rs, node);
+
+                               //If a key contains empty value, skip and do not index
+                                if(currentValue.isEmpty()){
+                                        continue;
+                                }
+
                                 if (addLanguage) {
                                         if (node.isLiteral()) {
                                                 lang = node.asLiteral().getLanguage();
@@ -1216,7 +1219,7 @@ public class Harvester implements Runnable {
                                 if (jsonMap.containsKey(property)) {
                                         //Needs some testing here.
                                         if (jsonMap.get(property) instanceof ArrayList) {
-                                                ArrayList<String> values = (ArrayList<String>) jsonMap.get(property);
+                                                List<String> values = (ArrayList<String>)jsonMap.get(property);
                                                 values.addAll(results);
                                                 jsonMap.put(property, values);
                                         }
@@ -1265,10 +1268,10 @@ public class Harvester implements Runnable {
          * @param model the model to index
          * @param bulkRequest a BulkRequestBuilder
          */
-        private void addModelToES(Model model, BulkRequestBuilder bulkRequest) throws IOException {
+        private void addModelToElasticsearch(Model model, BulkRequestBuilder bulkRequest) throws IOException {
                 long startTime = System.currentTimeMillis();
                 long bulkLength = 0;
-                HashSet<Property> properties = new HashSet<Property>();
+                HashSet<Property> properties = new HashSet<>();
 
                 StmtIterator iter = model.listStatements();
                 while (iter.hasNext()) {
@@ -1294,10 +1297,10 @@ public class Harvester implements Runnable {
 
                         //If updateDocuments is set to true, then prepare to update this document
                         if (updateDocuments) {
-                                prepareUpdateDocument(bulkRequest, beautify(jsonMap), rs.toString());
+                                prepareUpdateDocument(bulkRequest, convertSingleValueListToString(jsonMap), rs.toString());
                         } else {
                                 //Otherwise, prepare to index this document
-                                prepareIndexDocument(bulkRequest, beautify(jsonMap), rs.toString());
+                                prepareIndexDocument(bulkRequest, convertSingleValueListToString(jsonMap), rs.toString());
                         }
 
                         bulkLength++;
@@ -1405,15 +1408,14 @@ public class Harvester implements Runnable {
         }
 
         /**
-         * If input map contains a list of only one element, then convert the
-         * list to string.
+         * If input map contains a list of only one element, then convert the list to string.
          * @param map input map
          * @return a map where a value of type ArrayList that has only one element is converted to a string.
          */
-        private Map<String, Object> beautify (Map<String, Object> map) {
+        private Map<String, Object> convertSingleValueListToString(Map<String, Object> map) {
                 for (Map.Entry<String, Object> entry : map.entrySet()) {
                         if (entry.getValue() instanceof java.util.ArrayList) {
-                                ArrayList<String> value = (ArrayList<String>)entry.getValue();
+                                List<String> value = (ArrayList<String>)entry.getValue();
                                 if (value.size() == 1) {
                                         map.put(entry.getKey(), value.get(0));
                                 }
@@ -1425,8 +1427,10 @@ public class Harvester implements Runnable {
         /**
          * Builds a String result for Elastic Search from an RDFNode
          *
+         * @param resource An RDF resource
          * @param node An RDFNode representing the value of a property for a
          * given resource
+         *
          * @return If the RDFNode has a Literal value, among Boolean, Byte,
          * Double, Float, Integer Long, Short, this value is returned, converted
          * to String
@@ -1439,13 +1443,12 @@ public class Harvester implements Runnable {
          * surrounded by double quotes.</p>
          * Otherwise, the URI will be returned
          */
-        private String getStringForResult(RDFNode node) {
+        private String getStringForResult(Resource resource, RDFNode node) {
                 String result = "";
                 boolean quote = false;
-
                 if (node.isLiteral()) {
-                        Object literalValue = node.asLiteral().getValue();
                         try {
+                                Object literalValue = node.asLiteral().getValue();
                                 Class<?> literalJavaClass = node.asLiteral()
                                         .getDatatype()
                                         .getJavaClass();
@@ -1465,7 +1468,8 @@ public class Harvester implements Runnable {
                                 quote = true;
                         }
                         catch (Exception e){
-                                logger.error("Exception when getting literal value from a node [{}] ", e.getLocalizedMessage());
+                                logger.warn("Exception when retrieving literal value from a property [{}] of resource [{}]  with details [{}]. " +
+                                                "This property will not be indexed. ", node.toString(), resource.toString(), e.getLocalizedMessage());
                         }
 
                 } else if (node.isResource()) {
@@ -1480,7 +1484,8 @@ public class Harvester implements Runnable {
                                 quote = true;
                         }
                         catch (Exception ex){
-                                logger.error("Exception when getting resource value from a node [{}]", ex.getLocalizedMessage());
+                                logger.warn("Exception when getting resource value from a property [{}] of resource [{}] with details [{}]",
+                                        node.toString(), resource.toString(), ex.getLocalizedMessage());
                         }
                 }
 
