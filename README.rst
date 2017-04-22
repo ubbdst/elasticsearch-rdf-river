@@ -8,9 +8,9 @@ This River Plugin for Elasticsearch allows to harvest metadata from
 SPARQL endpoints, TDB store or plain RDF files into Elasticsearch. It is provided as a
 plugin.
 
-This plugin is the modified version of the EEA RDF River Plugin which is available at https://github.com/eea/eea.elasticsearch.river.rdf. The plugin was modified to meet the University of Bergen Library's requirements. 
+This plugin is a modified version of the  `EEA RDF River Plugin <https://github.com/eea/eea.elasticsearch.river.rdf>`_. The plugin was customized to meet the University of Bergen Library's requirements. 
 
-In this river, many options have been introduced including the support for harvesting data directly from `TDB <https://jena.apache.org/documentation/tdb/>`_ , ability to update only part of the indexed document and more. Please see the documentation for more details.
+In this river, many options have been introduced including the support for harvesting data directly from `TDB <https://jena.apache.org/documentation/tdb/>`_ , ability to update only part of the indexed document, bug fixes, indexing keywords for auto-suggestion and more. Please see the documentation for more details.
 
 
 .. contents::
