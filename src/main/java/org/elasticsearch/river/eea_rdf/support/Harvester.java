@@ -856,16 +856,15 @@ public class Harvester implements Runnable {
          * @return
          */
         public boolean runIndexAll() {
-                logger.info(
+                /*logger.info(
                         "Starting RDF harvester: endpoint [{}], TDB [{}] queries [{}],"
                         + "URLs [{}], index name [{}], typeName [{}]",
                         rdfEndpoint, tdbLocation, rdfQueries, rdfUrls, indexName, typeName);
-
+                 */
                 while (true) {
                         if (this.closed) {
-                                logger.info("Ended harvest for endpoint [{}], TDB [{}]  queries [{}],"
-                                        + "URLs [{}], index name [{}], type name [{}]",
-                                        rdfEndpoint, tdbLocation, rdfQueries, rdfUrls, indexName, typeName);
+                                logger.info("Ended the harvest for river [{}] on index [{}] and type [{}]",
+                                        riverName, indexName, typeName);
                                 return true;
                         }
 
@@ -1008,8 +1007,8 @@ public class Harvester implements Runnable {
 
                 for (String rdfQuery : rdfQueries) {
                         logger.info(
-                                "Harvesting with query: [{}] on index [{}] and type [{}]",
-                                rdfQuery, indexName, typeName);
+                                "Harvesting from endpoint [{}] for river [{}] on index [{}] and type [{}]",
+                                rdfEndpoint, riverName, indexName, typeName);
 
                         try {
                                 query = QueryFactory.create(rdfQuery);
@@ -1044,8 +1043,8 @@ public class Harvester implements Runnable {
 
                 for (String rdfQuery : rdfQueries) {
                         logger.info(
-                                "Harvesting from TDB [{}] with query: [{}] on index [{}] and type [{}]",
-                                tdbLocation, rdfQuery, indexName, typeName);
+                                "Harvesting from TDB store [{}] for river [{}] on index [{}] and type [{}]",
+                                tdbLocation, riverName, indexName, typeName);
 
                         try {
                                 query = QueryFactory.create(rdfQuery);
@@ -1331,6 +1330,7 @@ public class Harvester implements Runnable {
                 String actionPerformed = updateDocuments == true ? "updated" : "indexed";
                 logger.info("\n==========================================="
                         + "\n\tTotal documents " + actionPerformed + ": " + bulkLength
+                        + "\n\tRiver: " + riverName
                         + "\n\tIndex: " + indexName
                         + "\n\tType: " + typeName
                         + "\n\tTime taken: " + (System.currentTimeMillis() - startTime) / 1000.0
@@ -1468,8 +1468,8 @@ public class Harvester implements Runnable {
                                 quote = true;
                         }
                         catch (Exception e){
-                                logger.warn("Exception when retrieving literal value from a property [{}] of resource [{}]  with details [{}]. " +
-                                                "This property will not be indexed. ", node.toString(), resource.toString(), e.getLocalizedMessage());
+                                logger.warn("Exception when retrieving literal value from a property [{}] of resource [{}]  with details [{}], " +
+                                                "this property will not be indexed", node.toString(), resource.toString(), e.getLocalizedMessage());
                         }
 
                 } else if (node.isResource()) {
