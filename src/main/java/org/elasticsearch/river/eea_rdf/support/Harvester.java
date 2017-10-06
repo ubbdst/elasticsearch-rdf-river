@@ -1160,7 +1160,7 @@ public class Harvester implements Runnable {
                                         }
                                 }
                                 //Add values to suggest field for auto suggestion.
-                                if (isAutoSuggestionEnabled  && Strings.hasText(currentValue) /**&& suggestPropList.contains(property)**/) {
+                                if (isAutoSuggestionEnabled  && Strings.hasText(currentValue) /*&& suggestPropList.contains(property)*/) {
                        
                                         //Filter the value, such that it should not contain weird characters
                                         if(!currentValue.startsWith("http") && currentValue.length() <= maxSuggestInputLength
@@ -1173,7 +1173,7 @@ public class Harvester implements Runnable {
                                                         //These characters have special meaning in Elasticsearch,
                                                         //so we remove them in a suggestion list.
                                                         suggestValue = suggestValue
-                                                                .replace('/', ' ')
+                                                                //.replace('/', ' ')
                                                                 .replace(':', ' ')
                                                                 .replace('[', ' ')
                                                                 .replace(']', ' ')
@@ -1353,8 +1353,14 @@ public class Harvester implements Runnable {
                 }
                 for (BulkItemResponse item : response.getItems()) {
                         if (item.isFailed()) {
-                                logger.debug("Error {} occurred on index {}, type {}, id {} for {} operation ", item.getFailureMessage(), item.getIndex(), item.getType(), item.getId(), item.getOpType());
+                                logger.debug("Error {} occurred on index {}, type {}, id {} for {} operation ",
+                                        item.getFailureMessage(),
+                                        item.getIndex(),
+                                        item.getType(),
+                                        item.getId(),
+                                        item.getOpType());
                         }
+
                 }
         }
 
