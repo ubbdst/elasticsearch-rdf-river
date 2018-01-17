@@ -17,7 +17,7 @@ public class RDFRiverPlugin extends AbstractPlugin {
 
         @Override
 	public String name() {
-		return "eea-rdf-river";
+		return EEASettings.RIVER_PLUGIN_NAME;
 	}
 
         @Override

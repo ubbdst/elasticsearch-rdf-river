@@ -51,6 +51,7 @@ public class Harvester implements Runnable {
         private String rdfEndpoint;
         private String tdbLocation;
         private List<String> rdfQueries;
+        private List<String> rdfPaths;
         private QueryType rdfQueryType;
         private List<String> rdfPropList;
         private Boolean rdfListType = false;
@@ -88,6 +89,8 @@ public class Harvester implements Runnable {
 
         private HashMap<String, String> uriLabelCache;
         private Dataset tdbDataset = null;
+        private String queryPath;
+
 
         /**
          * Sets the {@link Harvester}'s {@link #rdfUrls} parameter
@@ -158,6 +161,21 @@ public class Harvester implements Runnable {
                 rdfQueries = new ArrayList<String>(query);
                 return this;
         }
+
+
+
+
+        /**
+         * Sets the {@link Harvester}'s {@link #rdfQueryPath(String)} parameter
+         *
+         * @param pathToSparqlQuery  a path where SPARQL query can be read
+         * @return the same {@link Harvester} with the {@link #rdfQueryPath(String)} set
+         */
+        public Harvester rdfQueryPath(String pathToSparqlQuery) {
+                queryPath = pathToSparqlQuery.trim();
+                return this;
+        }
+
 
         /**
          * Sets the {@link Harvester}'s {@link #rdfQueryType} parameter
@@ -871,14 +889,14 @@ public class Harvester implements Runnable {
                         /**
                          * Harvest from a SPARQL endpoint
                          */
-                        if (!rdfQueries.isEmpty() && !rdfEndpoint.trim().isEmpty()) {
+                        if (!rdfEndpoint.trim().isEmpty()) {
                                 harvestFromEndpoint();
                         }
 
                         /**
                          * Harvest from TDB
                          */
-                        if (!rdfQueries.isEmpty() && !tdbLocation.trim().isEmpty()) {
+                        if (!tdbLocation.trim().isEmpty()) {
                                 harvestFromTDB();
                         }
 
@@ -1033,55 +1051,94 @@ public class Harvester implements Runnable {
         }
 
         /**
-         * Harvest from TDB using queries specified from {@link #rdfQueries}
-         * list.
+         * Harvest from TDB using queries specified from {@link #rdfQueries and/or path specified in {@link #queryPath}.
          */
         private void harvestFromTDB() {
-                Query query;
-                QueryExecution qexec;
+                //Define dataset to query
                 Dataset dataset;
 
-                for (String rdfQuery : rdfQueries) {
-                        logger.info(
-                                "Harvesting from TDB store [{}] for river [{}] on index [{}] and type [{}]",
-                                tdbLocation, riverName, indexName, typeName);
+                //Create a data set object
+                dataset = TDBFactory.createDataset(tdbLocation);
+
+                //Use this data set throughout
+                this.setTDBDataset(dataset);
+
+
+                //Harvesting using a given SPARQL path
+                if(!queryPath.isEmpty()) {
+                        Query query = null;
+                        logger.info("Harvesting from TDB store [{}] using query path [{}] for river [{}] on index [{}] and type [{}]",
+                                tdbLocation, queryPath, riverName, indexName, typeName);
 
                         try {
-                                query = QueryFactory.create(rdfQuery);
+                                query = QueryFactory.read(queryPath);
                         } catch (QueryParseException qpe) {
-                                logger.error(
-                                        "Could not parse [{}]. Please provide a relevant query. {}",
-                                        rdfQuery, qpe);
-                                continue;
+                                logger.error("Could not parse [{}]. Please provide a relevant query. {}", queryPath, qpe);
                         }
-                        //Create a dataset object
-                        dataset = TDBFactory.createDataset(tdbLocation);
 
-                        if (dataset == null) {
-                                throw new IllegalArgumentException("Empty dataset. Please check your path to TDB");
-                        }
-                        //Use this dataset throughout
-                        this.setTDBDataset(dataset);
-
-                        //Begin READ transaction
-                        dataset.begin(ReadWrite.READ);
-
-                        //Execute SPARQL queries
-                        qexec = QueryExecutionFactory.create(query, dataset);
-
-                        try {
-                                Model model = getModel(qexec);
-                                addModelToElasticsearch(model, client.prepareBulk());
-                        } catch (Exception e) {
-                                logger.error("Exception [{}] occurred while harvesting using TDB", e.getLocalizedMessage());
-                                e.printStackTrace();
-
-                        } finally {
-                                qexec.close();
-                                dataset.end();
+                        if(query != null) {
+                                harvest(dataset, query);
                         }
                 }
+
+
+                //Harvesting using list of RDF Queries
+                if(!rdfQueries.isEmpty()) {
+                        Query query;
+                        for (String rdfQuery : rdfQueries) {
+                                logger.info(
+                                        "Harvesting from TDB store [{}] for river [{}] on index [{}] and type [{}]",
+                                        tdbLocation, riverName, indexName, typeName);
+
+                                try {
+                                        query = QueryFactory.create(rdfQuery);
+                                } catch (QueryParseException qpe) {
+                                        logger.error(
+                                                "Could not parse [{}]. Please provide a relevant query. {}",
+                                                rdfQuery, qpe);
+                                        continue;
+                                }
+
+                                 if(query != null) {
+                                         harvest(dataset, query);
+                                 }
+
+                        }
+                }
+
         }
+
+
+        /**
+         *  Harvest data using a given TDB dataset
+         *
+         *  @param query a given query
+         *  @param dataset a given dataset to query against
+         */
+        private void harvest(Dataset dataset, Query query) {
+                QueryExecution qexec;
+
+                //Begin READ transaction
+                dataset.begin(ReadWrite.READ);
+
+                //Execute SPARQL queries
+                qexec = QueryExecutionFactory.create(query, dataset);
+
+                // Do harvesting
+                try {
+                        Model model = getModel(qexec);
+                        addModelToElasticsearch(model, client.prepareBulk());
+                } catch (Exception e) {
+                        logger.error("Exception [{}] occurred while harvesting using TDB", e.getLocalizedMessage());
+                        e.printStackTrace();
+
+                } finally {
+                        qexec.close();
+                        dataset.end();
+                }
+        }
+
+
 
         /**
          * Harvests all the triplets from each URI in the @rdfUrls list

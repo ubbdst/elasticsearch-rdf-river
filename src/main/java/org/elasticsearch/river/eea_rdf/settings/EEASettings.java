@@ -14,6 +14,7 @@ public abstract class EEASettings {
     public final static String DEFAULT_INDEX_NAME = "rdfdata";
     public final static String DEFAULT_TYPE_NAME = "resource";
     public final static String SUGGESTION_FIELD = "suggest";
+    public final static String RIVER_PLUGIN_NAME = "ubb-rdf-river";
     public final static String SUGGESTION_INPUT_FIELD = "input";
     public final static String SUGGESTION_OUTPUT_FIELD = "output";
     public final static String SUGGESTION_PAYLOAD_FIELD = "payload";
