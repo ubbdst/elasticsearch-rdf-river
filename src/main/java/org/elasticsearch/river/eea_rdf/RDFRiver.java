@@ -103,6 +103,8 @@ public class RDFRiver extends AbstractRiverComponent implements River {
                 .removeIllegalCharsForSuggestion(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("removeIllegalCharsForSuggestion"),
                         true))
+                .deleteRiverAfterCreation(XContentMapValues.nodeBooleanValue(
+                        rdfSettings.get("deleteRiverAfterCreation"), false))
                 .maxSuggestInputLength(XContentMapValues.nodeIntegerValue(
                         rdfSettings.get("maxSuggestInputLength"),
                         EEASettings.DEFAULT_MAX_SUGGEST_INPUT_LENGTH))
