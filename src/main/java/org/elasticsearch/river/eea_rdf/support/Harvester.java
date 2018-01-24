@@ -11,6 +11,7 @@ import org.apache.jena.tdb.TDBFactory;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RiotException;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -114,9 +115,7 @@ public class Harvester implements Runnable {
          * parameter set
          */
         public Harvester rdfEndpoint(String endpoint) {
-                if(Strings.hasText(endpoint)) {
-                        rdfEndpoint = endpoint.trim();
-                }
+                rdfEndpoint = endpoint;
                 return this;
         }
 
@@ -149,9 +148,7 @@ public class Harvester implements Runnable {
          * @return the same {@link Harvester} with the {@link #tdbLocation} set
          */
         public Harvester rdfTDBLocation(String pathToTDB) {
-                if(Strings.hasText(pathToTDB)) {
-                        tdbLocation = pathToTDB.trim();
-                }
+                tdbLocation = pathToTDB;
                 return this;
         }
 
@@ -163,7 +160,7 @@ public class Harvester implements Runnable {
          * parameter set
          */
         public Harvester rdfQuery(List<String> query) {
-                rdfQueries = new ArrayList<String>(query);
+                rdfQueries = new ArrayList<>(query);
                 return this;
         }
 
@@ -602,18 +599,26 @@ public class Harvester implements Runnable {
                         setLastUpdate(new Date(currentTime));
                 }
 
+                //Delete river if specified by a user
                 if(deleteRiverMappingAfterCreation) {
-                    client.admin().indices()
-                            .prepareDeleteMapping("_river")
-                            .setType(riverName)
-                            .get();
-
+                        try {
+                                client.admin().indices()
+                                        .prepareDeleteMapping("_river")
+                                        .setType(riverName)
+                                        .get();
+                        }
+                        catch (ElasticsearchException e) {
+                                logger.warn(e.getDetailedMessage());
+                        }
+                        finally {
+                                logger.info("Deleted mappings for river [{}]", riverName);
+                        }
                 }
-                /**
-                 * client.admin().indices()
-                 * .prepareDeleteMapping("_river").setType(riverName)
-                 * .execute().actionGet();
-                 */
+                /*
+                  client.admin().indices()
+                  .prepareDeleteMapping("_river").setType(riverName)
+                  .execute().actionGet();
+                */
         }
 
         public boolean runSync() {
@@ -912,14 +917,14 @@ public class Harvester implements Runnable {
                         /**
                          * Harvest from a SPARQL endpoint
                          */
-                        if (!rdfEndpoint.isEmpty()) {
+                        if (!rdfEndpoint.trim().isEmpty()) {
                                 harvestFromEndpoint();
                         }
 
                         /**
                          * Harvest from TDB
                          */
-                        if (!tdbLocation.isEmpty()) {
+                        if (!tdbLocation.trim().isEmpty()) {
                                 harvestFromTDB();
                         }
 
@@ -1053,7 +1058,7 @@ public class Harvester implements Runnable {
                 QueryExecution qexec;
 
                 //Harvesting using a given SPARQL query path
-                if(!queryPath.isEmpty()) {
+                if(Strings.hasText(queryPath)) {
                         Query queryFromPath = null;
                         QueryExecution queryExecution;
                         logger.info("Harvesting from endpoint [{}] using query path [{}] for river [{}] on index [{}] and type [{}]",
@@ -1121,7 +1126,7 @@ public class Harvester implements Runnable {
                 this.setTDBDataset(dataset);
 
                 //Harvesting from a given SPARQL path
-                if(!queryPath.isEmpty()) {
+                if(Strings.hasText(queryPath)) {
                         logger.info("Harvesting from TDB store [{}] using query path [{}] for river [{}] on index [{}] and type [{}]",
                                 tdbLocation, queryPath, riverName, indexName, typeName);
 
