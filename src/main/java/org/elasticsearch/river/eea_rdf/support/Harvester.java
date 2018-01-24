@@ -1436,7 +1436,7 @@ public class Harvester implements Runnable {
 
                 }
                 //Show time taken to perfom the action 
-                String actionPerformed = updateDocuments == true ? "updated" : "indexed";
+                String actionPerformed = updateDocuments ? "updated" : "indexed";
                 logger.info("\n==========================================="
                         + "\n\tTotal documents " + actionPerformed + ": " + bulkLength
                         + "\n\tRiver: " + riverName
@@ -1742,22 +1742,5 @@ public class Harvester implements Runnable {
                 return innerQuery;
         }
 
-        //Main method for easy debugging ..
-        public static void main(String args[]){
-                String currentValue = "[D/S Fimann Mbowe, author:Juma]. ";
-
-                //Replace possible illegal characters
-                currentValue = currentValue
-                        .replace('/', ' ')
-                        .replace(':', ' ')
-                        .replace('[', ' ')
-                        .replace(']', ' ')
-                        .replace('.', ' ')
-                        .replace('?', ' ')
-                        .trim();
-
-                System.out.println("New Value: " + "\"" +  currentValue + "\"");
-                System.out.println(Character.isLetter('/'));
-        }
 
 }
