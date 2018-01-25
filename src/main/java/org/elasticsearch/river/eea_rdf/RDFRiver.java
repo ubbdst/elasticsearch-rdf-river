@@ -2,12 +2,14 @@ package org.elasticsearch.river.eea_rdf;
 
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.settings.loader.JsonSettingsLoader;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.river.*;
 import org.elasticsearch.river.eea_rdf.settings.EEASettings;
 import org.elasticsearch.river.eea_rdf.support.Harvester;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +48,11 @@ public class RDFRiver extends AbstractRiverComponent implements River {
     private static Map<String, String> getStrStrMapFromSettings(Map<String, Object> settings,
                                                                 String key) {
         return (Map<String, String>) settings.get(key);
+    }
+
+
+    private static Map<String, String> loadJsonFile(String path) throws IOException {
+        return new JsonSettingsLoader().load(path);
     }
 
     @SuppressWarnings("unchecked")
@@ -183,8 +190,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
     public void close() {
         harvester.log("Closing UBB RDF river [" + riverName.name() + "]");
         harvester.setClose(true);
-
-        if (harvesterThread != null) {
+        if (harvesterThread != null && !harvesterThread.isInterrupted()) {
             harvesterThread.interrupt();
         }
     }

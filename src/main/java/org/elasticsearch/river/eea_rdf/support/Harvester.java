@@ -1,17 +1,18 @@
 package org.elasticsearch.river.eea_rdf.support;
 
-import org.apache.jena.graph.*;
+import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.*;
-import org.apache.jena.sparql.engine.http.QueryExceptionHTTP;
-import org.apache.jena.tdb.TDBFactory;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RiotException;
-import org.elasticsearch.ElasticsearchException;
+import org.apache.jena.sparql.engine.http.QueryExceptionHTTP;
+import org.apache.jena.tdb.TDBFactory;
+import org.elasticsearch.action.ListenableActionFuture;
+import org.elasticsearch.action.admin.indices.mapping.delete.DeleteMappingResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -602,14 +603,18 @@ public class Harvester implements Runnable {
                 //Delete river if specified by a user
                 if(deleteRiverMappingAfterCreation) {
                         try {
-                                client.admin().indices()
-                                        .prepareDeleteMapping("_river")
-                                        .setType(riverName)
-                                        .get();
+                            ListenableActionFuture<DeleteMappingResponse> future = client.admin().indices()
+                                    .prepareDeleteMapping("_river")
+                                    .setType(riverName)
+                                    .execute();
+
+                               //if(!Thread.currentThread().isInterrupted()) {
+                                   future.actionGet();
+                              // }
                         }
-                        catch (ElasticsearchException e) {
+                        /*catch (ElasticsearchException e) {
                                 logger.warn(e.getDetailedMessage());
-                        }
+                        }*/
                         finally {
                                 logger.info("Deleted mappings for river [{}]", riverName);
                         }
@@ -1043,7 +1048,8 @@ public class Harvester implements Runnable {
                                 }
                         }
                         catch (Exception e) {
-                                logger.error("Exception [{}] occurred while harvesting", e.getLocalizedMessage());
+                                logger.error("Exception occurred while harvesting " +
+                                        "with details:  [{}] ", e.getLocalizedMessage());
                                 e.printStackTrace();
                         }
                 } while (retry);
