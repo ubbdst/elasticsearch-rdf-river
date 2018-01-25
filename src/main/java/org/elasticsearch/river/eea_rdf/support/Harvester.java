@@ -11,6 +11,8 @@ import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RiotException;
 import org.apache.jena.sparql.engine.http.QueryExceptionHTTP;
 import org.apache.jena.tdb.TDBFactory;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ElasticsearchIllegalStateException;
 import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.admin.indices.mapping.delete.DeleteMappingResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -603,28 +605,21 @@ public class Harvester implements Runnable {
                 //Delete river if specified by a user
                 if(deleteRiverMappingAfterCreation) {
                         try {
-                            ListenableActionFuture<DeleteMappingResponse> future = client.admin().indices()
+                            client.admin().indices()
                                     .prepareDeleteMapping("_river")
                                     .setType(riverName)
-                                    .execute();
-
-                               //if(!Thread.currentThread().isInterrupted()) {
-                                   future.actionGet();
-                              // }
+                                    .execute()
+                                    .actionGet();
                         }
-                        /*catch (ElasticsearchException e) {
+                        catch (ElasticsearchIllegalStateException e) {
                                 logger.warn(e.getDetailedMessage());
-                        }*/
+                        }
                         finally {
                                 logger.info("Deleted mappings for river [{}]", riverName);
                         }
                 }
-                /*
-                  client.admin().indices()
-                  .prepareDeleteMapping("_river").setType(riverName)
-                  .execute().actionGet();
-                */
         }
+
 
         public boolean runSync() {
                 logger.info("Starting RDF synchronizer: from [{}], endpoint [{}], "
@@ -1091,7 +1086,7 @@ public class Harvester implements Runnable {
 
                 //Harvesting using list of RDF queries
                 for (String rdfQuery : rdfQueries) {
-                        logger.info("Harvesting from endpoint [{}] for river [{}] on index [{}] and type [{}]",
+                        logger.info("Harvesting from endpoint [{}] for river [{}] on index [{}] and type [{}] using provided queries",
                                 rdfEndpoint, riverName, indexName, typeName);
 
                         try {
@@ -1244,8 +1239,8 @@ public class Harvester implements Runnable {
                 if (addUriForResource) {
                         results.add(rs.toString());
                         String normalizedProperty = EEASettings.DEFAULT_RESOURCE_URI;
-                        //If a property is defined in the normProp list, 
-                        //then use normalized(shorten) property.
+
+                        //If a property is defined in the normProp list, then use normalized(shorten) property.
                         if (willNormalizeProp && normalizeProp.containsKey(EEASettings.DEFAULT_RESOURCE_URI)) {
                                 normalizedProperty = normalizeProp.get(EEASettings.DEFAULT_RESOURCE_URI);
                         }

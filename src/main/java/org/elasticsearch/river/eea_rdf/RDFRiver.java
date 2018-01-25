@@ -2,14 +2,15 @@ package org.elasticsearch.river.eea_rdf;
 
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.settings.loader.JsonSettingsLoader;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.river.*;
 import org.elasticsearch.river.eea_rdf.settings.EEASettings;
 import org.elasticsearch.river.eea_rdf.support.Harvester;
+import org.elasticsearch.river.eea_rdf.support.JsonFileLoader;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,7 @@ import java.util.Map;
 public class RDFRiver extends AbstractRiverComponent implements River {
     private volatile Harvester harvester;
     private volatile Thread harvesterThread;
+    private static final ESLogger logger = Loggers.getLogger(RDFRiver.class);
 
     @Inject
     public RDFRiver(RiverName riverName,
@@ -39,21 +41,26 @@ public class RDFRiver extends AbstractRiverComponent implements River {
      * Type casting accessors for river settings
      **/
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> extractSettings(RiverSettings settings,
-                                                       String key) {
+    private static Map<String, Object> extractSettings(RiverSettings settings, String key) {
         return (Map<String, Object>) settings.settings().get(key);
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, String> getStrStrMapFromSettings(Map<String, Object> settings,
-                                                                String key) {
+    private static Map<String, String> getStrStrMapFromSettings(Map<String, Object> settings, String key) {
         return (Map<String, String>) settings.get(key);
     }
 
 
-    private static Map<String, String> loadJsonFile(String path) throws IOException {
-        return new JsonSettingsLoader().load(path);
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> loadProperties(Map<String, Object> settings, String key) {
+        Object values = settings.get(key);
+        logger.info("Class: {}, Contents:  {}", values.getClass(), values.toString());
+        if(values instanceof Map) {
+            return (Map<String, String>) values;
+        }
+        return new JsonFileLoader().resolveToMap(values.toString());
     }
+
 
     @SuppressWarnings("unchecked")
     private static Map<String, Object> getStrObjMapFromSettings(Map<String, Object> settings,
@@ -145,8 +152,11 @@ public class RDFRiver extends AbstractRiverComponent implements River {
             harvester.rdfQuery(EEASettings.DEFAULT_QUERIES);
         }
         if (rdfSettings.containsKey("normProp")) {
-            harvester.rdfNormalizationProp(getStrStrMapFromSettings(rdfSettings, "normProp"));
+            harvester.rdfNormalizationProp(loadProperties(rdfSettings, "normProp"));
         }
+        /*if (rdfSettings.containsKey("normProp")) {
+            harvester.rdfNormalizationProp(getStrStrMapFromSettings(rdfSettings, "normProp"));
+        }*/
         if (rdfSettings.containsKey("normMissing")) {
             harvester.rdfNormalizationMissing(getStrStrMapFromSettings(rdfSettings, "normMissing"));
         }
