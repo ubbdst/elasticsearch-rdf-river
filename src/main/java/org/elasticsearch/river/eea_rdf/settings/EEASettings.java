@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 public abstract class EEASettings {
 
     public final static String RIVER_SETTINGS_KEY = "eeaRDF";
+    public final static String UBB_SETTINGS_KEY = "ubbRDF";
     public final static String DEFAULT_INDEX_NAME = "rdfdata";
     public final static String DEFAULT_TYPE_NAME = "resource";
     public final static String SUGGESTION_FIELD = "suggest";

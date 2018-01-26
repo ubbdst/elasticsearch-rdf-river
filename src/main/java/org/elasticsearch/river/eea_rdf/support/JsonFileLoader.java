@@ -9,10 +9,7 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.loader.JsonSettingsLoader;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.Collections;
 import java.util.Map;
 
@@ -36,6 +33,16 @@ public class JsonFileLoader extends JsonSettingsLoader {
      */
     public static String read(String url) {
         return new FileManager().readWholeFileAsUTF8(url);
+    }
+
+    /**
+     * Read JSON file from stream
+     *
+     * @param in input stream
+     * @return returns a string representation of the file contents.
+     */
+    public static String read(InputStream in) {
+        return new FileManager().readWholeFileAsUTF8(in);
     }
 
     /**
@@ -84,6 +91,7 @@ public class JsonFileLoader extends JsonSettingsLoader {
         if (Strings.hasText(pathOrJsonString)) {
             try {
                 //It is likely a JSON string if it starts with "{" and ends with "}"
+                //if it is not valid JSON, exception will be thrown at the later stage
                 if (pathOrJsonString.trim().startsWith("{") && pathOrJsonString.trim().endsWith("}")) {
                     return toMap(pathOrJsonString);
                 }

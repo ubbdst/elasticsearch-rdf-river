@@ -54,7 +54,6 @@ public class RDFRiver extends AbstractRiverComponent implements River {
     @SuppressWarnings("unchecked")
     private static Map<String, String> loadProperties(Map<String, Object> settings, String key) {
         Object values = settings.get(key);
-        logger.info("Class: {}, Contents:  {}", values.getClass(), values.toString());
         if(values instanceof Map) {
             return (Map<String, String>) values;
         }
