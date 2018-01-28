@@ -7,9 +7,14 @@ import java.util.Map;
 
 
 /**
- * @author  Hemed Al Ruwehy
- *
- * Transformer for JSONLD context
+ * @author Hemed Al Ruwehy
+ * <p>
+ * Transformer for JSONLD context. Simply speaking, a context is used to map terms to IRIs.
+ * A context in JSON-LD allows two applications to use shortcut terms to communicate with one another more efficiently,
+ * but without losing accuracy.
+ * Terms are case sensitive and any valid string that is not a reserved JSON-LD keyword can be used as a term.
+ * <p>
+ * For more about context, see : https://www.w3.org/TR/json-ld/#the-context
  */
 abstract class ContextTransformer extends JsonFileLoader {
 
@@ -28,7 +33,7 @@ abstract class ContextTransformer extends JsonFileLoader {
 
 
     /**
-     * Transforms JSONLD context to Map of key-value strings. This is easily portable
+     * Transforms JSONLD context to Map of key-value strings. Leaving implementation to sub-classes
      *
      * @return a map of sting key-values
      */
@@ -45,6 +50,5 @@ abstract class ContextTransformer extends JsonFileLoader {
         }
         throw new IllegalArgumentException("JSON context must have @context key");
     }
-
 
 }

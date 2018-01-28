@@ -3,6 +3,7 @@ package org.elasticsearch.river.eea_rdf.support;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import org.apache.jena.atlas.web.HttpException;
 import org.apache.jena.util.FileManager;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.logging.ESLogger;
@@ -26,13 +27,35 @@ public class JsonFileLoader extends JsonSettingsLoader {
 
 
     /**
-     * Read JSON file from URL
+     * Read file from URL
      *
      * @param url URL (file: or http: or anything a FileManager can handle)
+     *
      * @return returns a string representation of the file contents.
      */
-    public static String read(String url) {
-        return new FileManager().readWholeFileAsUTF8(url);
+    public static String readFromUrl(String url) {
+        boolean retry;
+        int numberOfRetry = 0;
+        String content = "";
+        do {
+            retry = false;
+            try {
+                content = FileManager.get().readWholeFileAsUTF8(url);
+            } catch (HttpException httpe) {
+                if (httpe.getResponseCode() >= 500) {
+                    logger.error("Encountered an internal server error. Retrying!");
+                    retry = true;
+                    numberOfRetry++;
+                } else {
+                    throw httpe;
+                }
+            }
+            if(numberOfRetry > 20) {
+              throw new HttpException("Resource unavailable at: " + url);
+            }
+        } while (retry);
+
+        return content;
     }
 
     /**
@@ -42,7 +65,7 @@ public class JsonFileLoader extends JsonSettingsLoader {
      * @return returns a string representation of the file contents.
      */
     public static String read(InputStream in) {
-        return new FileManager().readWholeFileAsUTF8(in);
+        return FileManager.get().readWholeFileAsUTF8(in);
     }
 
     /**
@@ -70,14 +93,14 @@ public class JsonFileLoader extends JsonSettingsLoader {
 
 
     /**
-     * Convert a JSON string to Java map
+     * Convert a JSON string to a flat Java map
      *
      * @param source a valid JSON string
      * @return a Java map which is the result of JSON string
      *
      * @throws IOException
      */
-    public Map<String, String> toMap(String source) throws IOException {
+    public Map<String, String> toFlatMap(String source) throws IOException {
         return super.load(source);
     }
 
@@ -85,17 +108,17 @@ public class JsonFileLoader extends JsonSettingsLoader {
     /**
      * Resolve a given string to a Java Map.
      *
-     * @param pathOrJsonString it may be a JSON file path or a JSON string
+     * @param pathOrJsonString it may be a JSON file path/url or a JSON string
      */
-    public Map<String, String> resolveToMap(String pathOrJsonString) {
+    public Map<String, String> resolveToFlatMap(String pathOrJsonString) {
         if (Strings.hasText(pathOrJsonString)) {
             try {
                 //It is likely a JSON string if it starts with "{" and ends with "}"
                 //if it is not valid JSON, exception will be thrown at the later stage
                 if (pathOrJsonString.trim().startsWith("{") && pathOrJsonString.trim().endsWith("}")) {
-                    return toMap(pathOrJsonString);
+                    return toFlatMap(pathOrJsonString);
                 }
-                return toMap(readFromFile(pathOrJsonString));
+                return toFlatMap(readFromUrl(pathOrJsonString));
             } catch (IOException e) {
                 logger.warn("Unable to resolve path or JSON content [{ }] ", pathOrJsonString);
             }

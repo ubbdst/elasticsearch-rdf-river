@@ -55,9 +55,9 @@ public class RDFRiver extends AbstractRiverComponent implements River {
     private static Map<String, String> loadProperties(Map<String, Object> settings, String key) {
         Object values = settings.get(key);
         if(values instanceof Map) {
-            return (Map<String, String>) values;
+            return getStrStrMapFromSettings(settings, key);
         }
-        return new JsonFileLoader().resolveToMap(values.toString());
+        return new JsonFileLoader().resolveToFlatMap(values.toString());
     }
 
 

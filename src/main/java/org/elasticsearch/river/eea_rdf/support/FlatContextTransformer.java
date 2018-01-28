@@ -1,25 +1,28 @@
 package org.elasticsearch.river.eea_rdf.support;
 
 
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * @author Hemed Al Ruwehy
  * <p>
- * A calss for transforming Plain JSONLD Context.
+ * A calss for transforming Flat JSONLD Context. The value of a term definition in the context can either be
+ * a simple string, mapping the term to an IRI, or a JSON object.
  */
 
-public class PlainContextTransformer extends ContextTransformer {
+public class FlatContextTransformer extends ContextTransformer {
     private final ESLogger logger = Loggers.getLogger(getClass().getName());
     private Map<String, String> contextProperties = new HashMap<>();
     private JsonElement context;
 
-    PlainContextTransformer(String context) {
+    FlatContextTransformer(String context) {
         this.context = extractContextElement(context);
     }
 
@@ -28,7 +31,9 @@ public class PlainContextTransformer extends ContextTransformer {
     }
 
     /**
-     * Convert context to Map of String values
+     * Transform context to a flat map of string key-value pairs.
+     *
+     * @return a map where context values become keys and context keys become values.
      */
     @Override
     public Map<String, String> transform() {
@@ -37,13 +42,13 @@ public class PlainContextTransformer extends ContextTransformer {
                 String value = entry.getValue().getAsJsonObject().get(getContextId()).getAsString();
                 contextProperties.put(value, entry.getKey());
             } else if (entry.getValue().isJsonArray()) {
-                logger.warn("Expected URI but found JSON array in the context for property [{}]." +
+                logger.warn("Expected IRI but found JSON array for property [{}]." +
                         "This property will be ignored", entry.getKey());
             } else if (entry.getValue().isJsonNull()) {
-                logger.warn("Expected URI but found JSON Null in the context for property [{}]. " +
+                logger.warn("Expected IRI but found JSON Null for property [{}]. " +
                         "This property will be ignored", entry.getKey());
             } else if (entry.getValue().isJsonPrimitive()) {
-                logger.warn("Expected URI but found primitive data type in the context for property [{}]. " +
+                logger.warn("Expected IRI but found primitive data type for property [{}]. " +
                         "This property will be ignored", entry.getKey());
             } else {
                 contextProperties.put(entry.getValue().toString(), entry.getKey());
@@ -52,5 +57,21 @@ public class PlainContextTransformer extends ContextTransformer {
         return contextProperties;
     }
 
+
+    /**
+     * Main method for easy debugging
+     *
+     * @param args
+     * @throws IOException
+     */
+    public static void main(String[] args) throws IOException {
+        String s = readFromUrl("http://data.ub.uib.no/momayo/context.json");
+        System.out.println(new GsonBuilder()
+                .setPrettyPrinting()
+                .create()
+                .toJson(new FlatContextTransformer(s).transform())
+        );
+
+    }
 
 }

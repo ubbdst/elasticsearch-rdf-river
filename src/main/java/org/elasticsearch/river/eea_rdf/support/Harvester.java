@@ -11,10 +11,7 @@ import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RiotException;
 import org.apache.jena.sparql.engine.http.QueryExceptionHTTP;
 import org.apache.jena.tdb.TDBFactory;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchIllegalStateException;
-import org.elasticsearch.action.ListenableActionFuture;
-import org.elasticsearch.action.admin.indices.mapping.delete.DeleteMappingResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -428,7 +425,7 @@ public class Harvester implements Runnable {
         public Harvester rdfURIDescription(List<String> uriList) {
                 if (!uriList.isEmpty()) {
                         toDescribeURIs = true;
-                        uriDescriptionList = new ArrayList<String>(uriList);
+                        uriDescriptionList = new ArrayList<>(uriList);
                 }
                 return this;
         }
