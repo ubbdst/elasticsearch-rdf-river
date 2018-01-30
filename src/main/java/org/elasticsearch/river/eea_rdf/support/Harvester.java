@@ -324,6 +324,23 @@ public class Harvester implements Runnable {
                 return this;
         }
 
+
+        /**
+         * Merge context prop with normalize props
+         * @param context a context content.
+         * @return
+         */
+        public Harvester rdfContextProp(String context) {
+                if(context != null && !context.isEmpty()) {
+                        Map<String, String> props = ContextFactory.flatContext(context).transform();
+                        normalizeProp.putAll(props);
+                        if(!willNormalizeProp) {
+                                willNormalizeProp = true;
+                        }
+                }
+                return this;
+        }
+
         /**
          * Sets the {@link Harvester}'s {@link #normalizeObj} parameter.
          * {@link #normalizeObj} contains pairs of object-replacement. Objects

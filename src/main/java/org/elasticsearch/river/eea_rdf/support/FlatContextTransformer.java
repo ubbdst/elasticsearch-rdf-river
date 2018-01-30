@@ -3,12 +3,14 @@ package org.elasticsearch.river.eea_rdf.support;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author Hemed Al Ruwehy
@@ -19,11 +21,12 @@ import java.util.Map;
 
 public class FlatContextTransformer extends ContextTransformer {
     private final ESLogger logger = Loggers.getLogger(getClass().getName());
-    private Map<String, String> contextProperties = new HashMap<>();
+    private Map<String, String> contextProperties = new ConcurrentHashMap<>();
     private JsonElement context;
 
-    FlatContextTransformer(String context) {
-        this.context = extractContextElement(context);
+    @Inject
+    FlatContextTransformer(String content) {
+        this.context = extractContextElement(content);
     }
 
     public JsonElement getContextElement() {
@@ -64,12 +67,13 @@ public class FlatContextTransformer extends ContextTransformer {
      * @param args
      * @throws IOException
      */
-    public static void main(String[] args) throws IOException {
-        String s = readFromUrl("http://data.ub.uib.no/momayo/context.json");
+    public static void main(String[] args) {
+        String s = read("http://data.ub.uib.no/momayo/context.json", 20);
+        Map<String, String> props = ContextFactory.flatContext(s).transform();
         System.out.println(new GsonBuilder()
                 .setPrettyPrinting()
                 .create()
-                .toJson(new FlatContextTransformer(s).transform())
+                .toJson(props)
         );
 
     }

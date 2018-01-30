@@ -2,7 +2,10 @@ package org.elasticsearch.river.eea_rdf.support;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 
+import java.util.IllegalFormatException;
 import java.util.Map;
 
 
@@ -20,6 +23,7 @@ abstract class ContextTransformer extends JsonFileLoader {
 
     private static final String CONTEXT_KEY = "@context";
     private static final String CONTEXT_ID = "@id";
+    private ESLogger logger = Loggers.getLogger(getClass().getName());
 
 
     public static String getContextId() {
@@ -44,11 +48,20 @@ abstract class ContextTransformer extends JsonFileLoader {
      * Extract JSONLD context key as a JsonElement
      */
     public JsonElement extractContextElement(String context) {
-        JsonElement con = new JsonParser().parse(context);
-        if (con.isJsonObject() && con.getAsJsonObject().getAsJsonObject(getContextKey()) != null) {
-            return con.getAsJsonObject().getAsJsonObject(getContextKey());
+        try {
+            return parseJson(context).getAsJsonObject().getAsJsonObject(getContextKey());
         }
-        throw new IllegalArgumentException("JSON context must have @context key");
+        catch (Exception e) {
+            throw new IllegalArgumentException("The context is malformed : " + context);
+        }
+    }
+
+
+    /**
+     * Parse JSON and returns JsonElement
+     */
+    public static JsonElement parseJson(String json) {
+        return new JsonParser().parse(json);
     }
 
 }

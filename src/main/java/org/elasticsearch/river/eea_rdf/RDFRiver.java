@@ -8,6 +8,8 @@ import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.river.*;
 import org.elasticsearch.river.eea_rdf.settings.EEASettings;
+import org.elasticsearch.river.eea_rdf.support.ContextFactory;
+import org.elasticsearch.river.eea_rdf.support.FlatContextTransformer;
 import org.elasticsearch.river.eea_rdf.support.Harvester;
 import org.elasticsearch.river.eea_rdf.support.JsonFileLoader;
 
@@ -28,6 +30,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 
     @Inject
     public RDFRiver(RiverName riverName,
+                    FlatContextTransformer contextFactory,
                     RiverSettings settings,
                     @RiverIndexName String riverIndexName,
                     Client client) {
@@ -60,10 +63,14 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         return new JsonFileLoader().resolveToFlatMap(values.toString());
     }
 
+    private static String loadContext(Map<String, Object> settings, String key) {
+        Object values = settings.get(key);
+        return new JsonFileLoader().resolveToString(values.toString());
+    }
+
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> getStrObjMapFromSettings(Map<String, Object> settings,
-                                                                String key) {
+    private static Map<String, Object> getStrObjMapFromSettings(Map<String, Object> settings, String key) {
         return (Map<String, Object>) settings.get(key);
     }
 
@@ -79,7 +86,6 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         }
 
         Map<String, Object> rdfSettings = extractSettings(settings, EEASettings.RIVER_SETTINGS_KEY);
-
         harvester.rdfIndexType(XContentMapValues.nodeStringValue(
                 rdfSettings.get("indexType"), "full"))
                 .rdfStartTime(XContentMapValues.nodeStringValue(
@@ -152,6 +158,9 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         }
         if (rdfSettings.containsKey("normProp")) {
             harvester.rdfNormalizationProp(loadProperties(rdfSettings, "normProp"));
+        }
+        if (rdfSettings.containsKey("context")) {
+            harvester.rdfContextProp(loadContext(rdfSettings, "context"));
         }
         /*if (rdfSettings.containsKey("normProp")) {
             harvester.rdfNormalizationProp(getStrStrMapFromSettings(rdfSettings, "normProp"));

@@ -30,32 +30,47 @@ public class JsonFileLoader extends JsonSettingsLoader {
      * Read file from URL
      *
      * @param url URL (file: or http: or anything a FileManager can handle)
+     * @param numberOfRetry  how many times should we retry if HTTP server encountered internal error
      *
      * @return returns a string representation of the file contents.
      */
-    public static String readFromUrl(String url) {
+    public static String read(String url, int numberOfRetry) {
         boolean retry;
-        int numberOfRetry = 0;
+        int countRetry = 0;
         String content = "";
         do {
             retry = false;
             try {
-                content = FileManager.get().readWholeFileAsUTF8(url);
+                content = read(url);
             } catch (HttpException httpe) {
                 if (httpe.getResponseCode() >= 500) {
-                    logger.error("Encountered an internal server error. Retrying!");
+                    logger.error("Encountered an internal server error. Retrying...");
                     retry = true;
-                    numberOfRetry++;
+                    countRetry++;
                 } else {
                     throw httpe;
                 }
             }
-            if(numberOfRetry > 20) {
+            if(countRetry > numberOfRetry) {
               throw new HttpException("Resource unavailable at: " + url);
             }
         } while (retry);
 
         return content;
+    }
+
+
+
+    /**
+     * Read file from URL
+     *
+     * @param url URL (file: or http: or anything a FileManager can handle)
+     *
+     * @return returns a string representation of the file contents.
+     */
+    public static String read(String url) {
+        logger.info("Reading URL from {}", url);
+        return FileManager.get().readWholeFileAsUTF8(url);
     }
 
     /**
@@ -113,17 +128,29 @@ public class JsonFileLoader extends JsonSettingsLoader {
     public Map<String, String> resolveToFlatMap(String pathOrJsonString) {
         if (Strings.hasText(pathOrJsonString)) {
             try {
-                //It is likely a JSON string if it starts with "{" and ends with "}"
-                //if it is not valid JSON, exception will be thrown at the later stage
-                if (pathOrJsonString.trim().startsWith("{") && pathOrJsonString.trim().endsWith("}")) {
-                    return toFlatMap(pathOrJsonString);
-                }
-                return toFlatMap(readFromUrl(pathOrJsonString));
+                return toFlatMap(resolveToString(pathOrJsonString));
             } catch (IOException e) {
                 logger.warn("Unable to resolve path or JSON content [{ }] ", pathOrJsonString);
             }
         }
         return Collections.emptyMap();
     }
+
+
+    /**
+     * Resolve a given content to string
+     */
+    public String resolveToString(String content) {
+        if (content != null && !content.isEmpty()){
+            //It is likely a JSON string if it starts with "{" and ends with "}"
+            //if it is not valid JSON, exception will be thrown at the later stage
+            if (content.trim().startsWith("{") && content.trim().endsWith("}")) {
+                return content;
+            }
+            return read(content, 20);
+        }
+        return "";
+    }
+
 
 }
