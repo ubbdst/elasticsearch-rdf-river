@@ -64,6 +64,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 
     private static String loadContext(Map<String, Object> settings, String key) {
         Object values = settings.get(key);
+        logger.info("Reading context from: " + values);
         return new JsonFileLoader().resolveToString(values.toString());
     }
 
