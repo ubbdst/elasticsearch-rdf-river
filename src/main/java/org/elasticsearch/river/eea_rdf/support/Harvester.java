@@ -59,7 +59,7 @@ public class Harvester implements Runnable {
         private Boolean hasList = false;
         private boolean isAutoSuggestionEnabled = true;
         private Boolean removeIllegalCharsForSuggestion = true;
-        private Map<String, String> normalizeProp;
+        private Map<String, String> normalizeProp = new HashMap<>();
         private Map<String, String> normalizeObj;
         private Map<String, String> normalizeMissing;
         private Boolean willNormalizeProp = false;
@@ -82,6 +82,7 @@ public class Harvester implements Runnable {
         private int maxSuggestInputLength;
 
         private Client client;
+        private ContextTransformer contextTransformer;
         private String indexName;
         private String typeName;
         private String riverName;
@@ -319,7 +320,8 @@ public class Harvester implements Runnable {
         public Harvester rdfNormalizationProp(Map<String, String> normalizeProp) {
                 if (normalizeProp != null && !normalizeProp.isEmpty()) {
                         this.willNormalizeProp = true;
-                        this.normalizeProp = normalizeProp;
+                       //this.normalizeProp = normalizeProp;
+                        this.normalizeProp.putAll(normalizeProp);
                 }
                 return this;
         }
@@ -328,13 +330,14 @@ public class Harvester implements Runnable {
         /**
          * Merge context prop with normalize props
          * @param context a context content.
-         * @return
+         *
+         * @return this harvester where context builder is already set
          */
         public Harvester rdfContextProp(String context) {
                 if(context != null && !context.isEmpty()) {
-                        Map<String, String> props = ContextFactory.flatContext(context).transform();
+                        Map<String, String> props = contextTransformer.transform(context);
                         normalizeProp.putAll(props);
-                        if(!willNormalizeProp) {
+                        if (!willNormalizeProp) {
                                 willNormalizeProp = true;
                         }
                 }
@@ -547,6 +550,12 @@ public class Harvester implements Runnable {
 
         public Harvester client(Client client) {
                 this.client = client;
+                return this;
+        }
+
+
+        public Harvester contextTransformer(ContextTransformer transformer) {
+                this.contextTransformer= transformer;
                 return this;
         }
 

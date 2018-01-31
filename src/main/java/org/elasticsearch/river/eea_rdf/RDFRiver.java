@@ -9,7 +9,6 @@ import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.river.*;
 import org.elasticsearch.river.eea_rdf.settings.EEASettings;
 import org.elasticsearch.river.eea_rdf.support.ContextFactory;
-import org.elasticsearch.river.eea_rdf.support.FlatContextTransformer;
 import org.elasticsearch.river.eea_rdf.support.Harvester;
 import org.elasticsearch.river.eea_rdf.support.JsonFileLoader;
 
@@ -24,19 +23,19 @@ import java.util.Map;
  * @since 09-03-2015
  */
 public class RDFRiver extends AbstractRiverComponent implements River {
+    private static final ESLogger logger = Loggers.getLogger(RDFRiver.class);
     private volatile Harvester harvester;
     private volatile Thread harvesterThread;
-    private static final ESLogger logger = Loggers.getLogger(RDFRiver.class);
 
     @Inject
     public RDFRiver(RiverName riverName,
-                    FlatContextTransformer contextFactory,
                     RiverSettings settings,
                     @RiverIndexName String riverIndexName,
                     Client client) {
         super(riverName, settings);
         harvester = new Harvester();
         harvester.client(client).riverName(riverName.name());
+        harvester.contextTransformer(ContextFactory.flatContext());
         addHarvesterSettings(settings);
     }
 
@@ -57,7 +56,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
     @SuppressWarnings("unchecked")
     private static Map<String, String> loadProperties(Map<String, Object> settings, String key) {
         Object values = settings.get(key);
-        if(values instanceof Map) {
+        if (values instanceof Map) {
             return getStrStrMapFromSettings(settings, key);
         }
         return new JsonFileLoader().resolveToFlatMap(values.toString());
@@ -127,13 +126,16 @@ public class RDFRiver extends AbstractRiverComponent implements River {
                 .maxSuggestInputLength(XContentMapValues.nodeIntegerValue(
                         rdfSettings.get("maxSuggestInputLength"),
                         EEASettings.DEFAULT_MAX_SUGGEST_INPUT_LENGTH))
-                 /*.rdfURIDescription(XContentMapValues.nodeStringValue(
-						rdfSettings.get("uriDescription"),
-						EEASettings.DEFAULT_URI_DESCRIPTION))
-                 */
+                /*.rdfURIDescription(XContentMapValues.nodeStringValue(
+                       rdfSettings.get("uriDescription"),
+                       EEASettings.DEFAULT_URI_DESCRIPTION))
+                */
                 .rdfSyncConditions(XContentMapValues.nodeStringValue(
                         rdfSettings.get("syncConditions"),
                         EEASettings.DEFAULT_SYNC_COND))
+                /*.rdfContextProp(XContentMapValues.nodeStringValue(
+                        rdfSettings.get("context"), ""))
+                        */
                 .rdfSyncTimeProp(XContentMapValues.nodeStringValue(
                         rdfSettings.get("syncTimeProp"),
                         EEASettings.DEFAULT_SYNC_TIME_PROP))
@@ -156,15 +158,15 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         } else {
             harvester.rdfQuery(EEASettings.DEFAULT_QUERIES);
         }
+        /*if (rdfSettings.containsKey("normProp")) {
+            harvester.rdfNormalizationProp(getStrStrMapFromSettings(rdfSettings, "normProp"));
+        }*/
         if (rdfSettings.containsKey("normProp")) {
             harvester.rdfNormalizationProp(loadProperties(rdfSettings, "normProp"));
         }
         if (rdfSettings.containsKey("context")) {
             harvester.rdfContextProp(loadContext(rdfSettings, "context"));
         }
-        /*if (rdfSettings.containsKey("normProp")) {
-            harvester.rdfNormalizationProp(getStrStrMapFromSettings(rdfSettings, "normProp"));
-        }*/
         if (rdfSettings.containsKey("normMissing")) {
             harvester.rdfNormalizationMissing(getStrStrMapFromSettings(rdfSettings, "normMissing"));
         }
@@ -177,11 +179,6 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         if (rdfSettings.containsKey("whiteMap")) {
             harvester.rdfWhiteMap(getStrObjMapFromSettings(rdfSettings, "whiteMap"));
         }
-        /*
-         if (rdfSettings.containsKey("suggestPropList")) {
-           harvester.setSuggestionList(getStrListFromSettings(rdfSettings, "suggestPropList"));
-         }
-        */
         if (settings.settings().containsKey("index")) {
             Map<String, Object> indexSettings = extractSettings(settings, "index");
             harvester.index(XContentMapValues.nodeStringValue(
