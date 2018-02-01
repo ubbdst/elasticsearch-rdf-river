@@ -82,7 +82,6 @@ public class Harvester implements Runnable {
         private int maxSuggestInputLength;
 
         private Client client;
-        private ContextTransformer contextTransformer;
         private String indexName;
         private String typeName;
         private String riverName;
@@ -330,12 +329,14 @@ public class Harvester implements Runnable {
         /**
          * Merge context prop with normalize props
          * @param context a context content.
+         * @param transformer an object to transform this context
          *
          * @return this harvester where context builder is already set
          */
-        public Harvester rdfContextProp(String context) {
+        public Harvester rdfContextProp(String context, ContextTransformer transformer) {
                 if(context != null && !context.isEmpty()) {
-                        Map<String, String> props = contextTransformer.transform(context);
+                        //Map<String, String> props = contextTransformer.transform(context);
+                        Map<String, String> props = transformer.transform(context);
                         normalizeProp.putAll(props);
                         if (!willNormalizeProp) {
                                 willNormalizeProp = true;

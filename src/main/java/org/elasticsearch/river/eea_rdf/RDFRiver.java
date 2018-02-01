@@ -35,7 +35,6 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         super(riverName, settings);
         harvester = new Harvester();
         harvester.client(client).riverName(riverName.name());
-        harvester.contextTransformer(ContextFactory.flatContext());
         addHarvesterSettings(settings);
     }
 
@@ -162,11 +161,11 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         /*if (rdfSettings.containsKey("normProp")) {
             harvester.rdfNormalizationProp(getStrStrMapFromSettings(rdfSettings, "normProp"));
         }*/
+        if (rdfSettings.containsKey("context")) {
+            harvester.rdfContextProp(loadContext(rdfSettings, "context"), ContextFactory.flatContext());
+        }
         if (rdfSettings.containsKey("normProp")) {
             harvester.rdfNormalizationProp(loadProperties(rdfSettings, "normProp"));
-        }
-        if (rdfSettings.containsKey("context")) {
-            harvester.rdfContextProp(loadContext(rdfSettings, "context"));
         }
         if (rdfSettings.containsKey("normMissing")) {
             harvester.rdfNormalizationMissing(getStrStrMapFromSettings(rdfSettings, "normMissing"));
