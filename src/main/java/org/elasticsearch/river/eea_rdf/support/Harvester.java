@@ -554,12 +554,6 @@ public class Harvester implements Runnable {
                 return this;
         }
 
-
-        public Harvester contextTransformer(ContextTransformer transformer) {
-                this.contextTransformer= transformer;
-                return this;
-        }
-
         public Harvester index(String indexName) {
                 this.indexName = indexName;
                 return this;
