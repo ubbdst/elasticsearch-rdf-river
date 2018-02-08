@@ -630,9 +630,8 @@ public class Harvester implements Runnable {
                                     .actionGet();
                         }
                         catch (ElasticsearchIllegalStateException e) {
-                                logger.warn(e.getDetailedMessage());
-                        }
-                        finally {
+                                //Whenever river is deleted, IllegalStateException is thrown. I think this is a
+                                //bug from Elasticsearch itself. I am catching it to reduce noise in the cluster
                                 logger.info("Deleted mappings for river [{}]", riverName);
                         }
                 }

@@ -16,7 +16,7 @@ public class ContextFactory {
     /**
      * Creates Flat Context implementation
      */
-    public static ContextTransformer flatContext() {
+    public static synchronized ContextTransformer flatContext() {
         if (transformer == null) {
             transformer = new FlatContextTransformer();
         }
