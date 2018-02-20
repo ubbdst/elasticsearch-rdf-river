@@ -52,6 +52,7 @@ Main features
 7. Whitelist of required properties
 8. Normalization of properties from different namespaces
 9. Normalization of missing properties
+10. Deleting river mappings after indexing
 
 Indexing
 ========
@@ -161,10 +162,28 @@ Note:
 **Tips**: `See how to optimize your queries / avoid endpoint timeout <http://taskman.eionet.europa.eu/projects/zope/wiki/HowToWriteOptimalSPARQLQueries>`_
 
 
+Query Path
+++++++++++++++++++++++
+From version 1.7.6 we introduced support for 'queryPath', such that one can specify path to the sparql file.  
+
+For example,
+
+::
+
+ curl -XPUT 'localhost:9200/_river/rdf_river/_meta' -d '{
+   "type" : "eeaRDF",
+   "eeaRDF" : {
+      "endpoint" : "http://semantic.eea.europa.eu/sparql",
+      "queryPath" : "path/to/file.sparql"
+      "queryType" : "construct"
+   }
+ }'
+
+
 From TDB
 ++++++++++++++++++++++
 
-Data can also be harvested directly from TDB storage. It is exactly the same as from SPARQL endpoint discussed above except you will have to specify tdbLocation instead of endpoint in the river settings. Note that the key tdbLocation holds the path to the TDB directory.
+Data can also be harvested directly from TDB storage. It is exactly the same as from SPARQL endpoint discussed above except you will have to specify 'tdbLocation' instead of endpoint in the river settings. Note that the key tdbLocation holds the path to the TDB directory.
 
 
 ::
@@ -435,7 +454,7 @@ Properties Normalization
 
 'NormProp' contains pairs of property-replacement. The properties are replaced
 with the given values and if one resource has both properties their values are
-grouped in a list.
+grouped in a list. 'NormProp' can also be a path to the JSON file that describe those pairs.
 
 ::
 
@@ -501,6 +520,23 @@ this dict.
    }
  }'
 
+Context Normalization
+++++++++++++++++++++++++
+
+From version 1.7.6, the river supports JSONLD context normalization. When context is given, all properties will be normalized to the context keys.
+Example of the context can be found here: http://data.ub.uib.no/momayo/context.json
+
+::
+
+ curl -XPUT 'localhost:9200/_river/rdf_river/_meta' -d '{
+   "type" : "eeaRDF",
+   "eeaRDF" : {
+      "endpoint" : "http://semantic.eea.europa.eu/sparql",
+      "queryPath" : "test.sparql",
+      "queryType" : "construct",
+      "context" : "http://data.ub.uib.no/momayo/context.json"
+   }
+ }'
 
  
  
@@ -585,6 +621,26 @@ that no longer match the conditions are deleted.
    }
  }'
  
+ 
+Deleting River
+==============
+
+Sometimes the user might want to delete river after indexing. This can be achieved by simply declaring 
+flag ``deleteRiverAfterCreation`` to ``true``. It is ``false`` by default.
+
+The following example deletes river 'matata' after creation.
+
+::
+
+ curl -XPUT 'localhost:9200/_river/matata/_meta' -d '{
+   "type": "eeaRDF",
+   "eeaRDF" : {
+      "endpoint" : "http://semantic.eea.europa.eu/sparql",
+      "queryType" : "construct",
+      "queryPath" : "/usr/share/scripts/matata.sparql",
+      "deleteRiverAfterCreation" : true
+   }
+ }'
 
  
 Scheduling the harvest
