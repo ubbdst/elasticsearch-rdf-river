@@ -2,11 +2,12 @@ package org.elasticsearch.river.eea_rdf.settings;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
  * @author EEA
- *         Modified by Hemed Ali, 09-03-2015
+ * Modified by Hemed Ali, 09-03-2015
  */
 public abstract class EEASettings {
 
@@ -64,5 +65,27 @@ public abstract class EEASettings {
         Pattern invalidXMLChars = Pattern.compile("[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1F]");
         invalidXMLChars.matcher(text).replaceAll("");
         return text;
+    }
+
+    /**
+     * Gets time representation as string
+     */
+    public static String getTimeFormatAsString(long timeInMilliSeconds) {
+
+        //Time in seconds
+        double timeInSeconds = timeInMilliSeconds/1000.0;
+
+            //In minutes
+            if(timeInSeconds >= 60 && timeInSeconds < 60*60){
+                return timeInSeconds/60 + " minutes";
+            }
+
+            //In hours
+            if(timeInSeconds >= 60*60 && timeInSeconds < 24*3600) {
+                return timeInSeconds/3600 + " hours";
+            }
+
+            //default unit
+            return timeInSeconds + " seconds";
     }
 }

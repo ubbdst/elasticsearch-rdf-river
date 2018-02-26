@@ -11,22 +11,22 @@ import org.elasticsearch.river.eea_rdf.settings.EEASettings;
  */
 public class RDFRiverPlugin extends AbstractPlugin {
 
-	@Inject
-	public RDFRiverPlugin(){
-	}
+    @Inject
+    public RDFRiverPlugin() {
+    }
 
-        @Override
-	public String name() {
-		return EEASettings.RIVER_PLUGIN_NAME;
-	}
+    @Override
+    public String name() {
+        return EEASettings.RIVER_PLUGIN_NAME;
+    }
 
-        @Override
-	public String description() {
-		return "Turtle RDF River Plugin";
-	}
+    @Override
+    public String description() {
+        return "Turtle RDF River Plugin";
+    }
 
-	public void onModule(RiversModule module) {
-		module.registerRiver(EEASettings.RIVER_SETTINGS_KEY, RDFRiverModule.class);
-	}
+    public void onModule(RiversModule module) {
+        module.registerRiver(EEASettings.RIVER_SETTINGS_KEY, RDFRiverModule.class);
+    }
 }
 
