@@ -67,25 +67,62 @@ public abstract class EEASettings {
         return text;
     }
 
+    //Elasticsearch reserved characters (without minus sign and forward slash)
+    private static final char[] SPECIAL_CHARS = {
+            '*', '"', '\\', '=', '&', '|', '>', '<', '!', '(', ')',
+            '{', '}', '^', '~', '?', ':', '!', '[', ']', '.'
+    };
+
+    //Empty character
+    private final static char EMPTY_CHAR = ' ';
+
+
     /**
      * Gets time representation as string
      */
     public static String getTimeFormatAsString(long timeInMilliSeconds) {
-
         //Time in seconds
         double timeInSeconds = timeInMilliSeconds/1000.0;
+        //In minutes
+        if(timeInSeconds >= 60 && timeInSeconds < 60*60){
+            return timeInSeconds/60 + " minutes";
+        }
+        //In hours
+        if(timeInSeconds >= 60*60 && timeInSeconds < 24*3600) {
+            return timeInSeconds/3600 + " hours";
+        }
+        //default unit
+        return timeInSeconds + " seconds";
+    }
 
-            //In minutes
-            if(timeInSeconds >= 60 && timeInSeconds < 60*60){
-                return timeInSeconds/60 + " minutes";
+
+
+    /**
+     * Removes special characters from the given string
+     *
+     * @param s a given string
+     * @return this string where all special characters, if exist, have been removed
+     */
+    public static String removeSpecialChars(String s) {
+        if (isNullOrEmpty(s)) {
+            return s;
+        }
+        for (char character : SPECIAL_CHARS) {
+            if (s.indexOf(character) > -1) {
+                s = s.replace(character, EMPTY_CHAR);
             }
+        }
+       return s.trim();
+    }
 
-            //In hours
-            if(timeInSeconds >= 60*60 && timeInSeconds < 24*3600) {
-                return timeInSeconds/3600 + " hours";
-            }
 
-            //default unit
-            return timeInSeconds + " seconds";
+    /**
+     * Checks if a given string is either null or empty
+     *
+     * @param s  a string to check
+     * @return true if this string is null or empty, otherwise false
+     */
+    public static boolean isNullOrEmpty(CharSequence s) {
+        return s == null || s.length() == 0;
     }
 }

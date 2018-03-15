@@ -1274,7 +1274,8 @@ public class Harvester implements Runnable {
                             //Replace possible illegal characters with empty space.
                             //These characters have special meaning in Elasticsearch,
                             //so we remove them in a suggestion list.
-                            suggestValue = suggestValue
+                            suggestValue = EEASettings.removeSpecialChars(suggestValue);
+                            /*suggestValue = suggestValue
                                     //.replace('/', ' ')
                                     .replace(':', ' ')
                                     .replace('[', ' ')
@@ -1282,6 +1283,7 @@ public class Harvester implements Runnable {
                                     .replace('.', ' ')
                                     .replace('?', ' ')
                                     .trim();
+                                    */
                         }
                         //Add value to the list
                         suggestInputs.add(suggestValue.toLowerCase());
