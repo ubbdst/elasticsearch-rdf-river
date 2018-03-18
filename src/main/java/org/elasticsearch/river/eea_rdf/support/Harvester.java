@@ -1186,6 +1186,43 @@ public class Harvester implements Runnable {
         }
     }
 
+
+    /**
+     * Harvest data using a given TDB dataset in chunks
+     *
+     * @param query   a given query
+     * @param dataset a given dataset to query against
+     */
+    private void harvestInChunks(Dataset dataset, Query query) {
+        boolean keepQuerying = true;
+        long limit = 1000;
+        long offset = 0;
+        // Begin READ transaction
+        dataset.begin(ReadWrite.READ);
+        do {
+            query.setOffset(offset);
+            query.setLimit(limit);
+            try (QueryExecution queryExecution = QueryExecutionFactory.create(query, dataset)) {
+                Model model = getModel(queryExecution);
+                // Send model to Elasticsearch
+                if (model != null) {
+                    addModelToElasticsearch(model, client.prepareBulk());
+                }
+                // Increment offset
+                offset = offset + limit;
+                // Decide whether to keep querying or not
+                if (Objects.isNull(model) || model.isEmpty()) {
+                    keepQuerying = false;
+                }
+            } catch (Exception e) {
+                logger.error("Exception occurred during harvesting using TDB [{}] ", e.getLocalizedMessage());
+                e.printStackTrace();
+            }
+        }
+        while (keepQuerying);
+        dataset.end();
+    }
+
     /**
      * Harvests all the triplets from each URI in the @rdfUrls list
      */
@@ -1262,11 +1299,13 @@ public class Harvester implements Runnable {
                     }
                 }
                 //Add values to suggest field for auto suggestion.
-                if (isAutoSuggestionEnabled && Strings.hasText(currentValue) /*&& suggestPropList.contains(property)*/) {
+                if (isAutoSuggestionEnabled && Strings.hasText(currentValue)
+                    /*&& suggestPropList.contains(property)*/) {
 
                     //Filter the value, such that it should not contain weird characters
                     if (!currentValue.startsWith("http") && currentValue.length() <= maxSuggestInputLength
-                            && !currentValue.equalsIgnoreCase("true") && !currentValue.equalsIgnoreCase("false")
+                            && !currentValue.equalsIgnoreCase("true")
+                            && !currentValue.equalsIgnoreCase("false")
                             && Character.isLetter(currentValue.charAt(0))) {
 
                         suggestValue = currentValue;
@@ -1574,8 +1613,9 @@ public class Harvester implements Runnable {
                         node.asLiteral().getLexicalForm());
                 quote = true;
             } catch (Exception e) {
-                logger.warn("Exception when retrieving literal value from a property [{}] of resource [{}]  with details [{}], " +
-                        "this property will not be indexed", node.toString(), resource.toString(), e.getLocalizedMessage());
+                logger.warn("Exception when retrieving literal value from a property [{}]" +
+                        " of resource [{}]  with details [{}]. The property will not be indexed",
+                        node.toString(), resource.toString(), e.getLocalizedMessage());
             }
 
         } else if (node.isResource()) {
@@ -1589,7 +1629,8 @@ public class Harvester implements Runnable {
                 }
                 quote = true;
             } catch (Exception ex) {
-                logger.warn("Exception when getting resource value from a property [{}] of resource [{}] with details [{}]",
+                logger.warn("Exception when getting resource value from a property [{}] " +
+                                "of resource [{}] with details [{}]",
                         node.toString(), resource.toString(), ex.getLocalizedMessage());
             }
         }
@@ -1674,7 +1715,8 @@ public class Harvester implements Runnable {
                     }
                 }
             } catch (Exception e) {
-                logger.warn("Could not get label for uri [{}] from TDB [{}] with query [{}] ", uri, tdbLocation, innerQuery);
+                logger.warn("Could not get label for uri [{}] from TDB [{}] with query [{}] ",
+                        uri, tdbLocation, innerQuery);
                 e.getLocalizedMessage();
             }
         } catch (QueryParseException qpe) {
@@ -1723,9 +1765,8 @@ public class Harvester implements Runnable {
         bind += "BIND(COALESCE(" + labelCoalesce.substring(0, labelCoalesce.length() - 1) + ") AS ?label) ";
 
         //Build up the final query to fetch the corresponding label.
-        String innerQuery = "SELECT ?label "
+        return "SELECT ?label "
                 + "WHERE { GRAPH ?G { " + options + bind + "} " + filter + "} " + "LIMIT 1";
-        return innerQuery;
     }
 
     private enum QueryType {
