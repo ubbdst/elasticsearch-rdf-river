@@ -11,5 +11,7 @@ pom.xml.releaseBackup
 .classpath
 .project
 .DS_Store
+.settings
+/bin
 
 
