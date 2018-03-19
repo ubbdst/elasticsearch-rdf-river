@@ -1,4 +1,4 @@
-package org.elasticsearch.river.eea_rdf;
+package org.elasticsearch.river.ubb;
 
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
@@ -7,17 +7,18 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.river.*;
-import org.elasticsearch.river.eea_rdf.settings.EEASettings;
-import org.elasticsearch.river.eea_rdf.support.ContextFactory;
-import org.elasticsearch.river.eea_rdf.support.Harvester;
-import org.elasticsearch.river.eea_rdf.support.JsonFileLoader;
+import org.elasticsearch.river.ubb.settings.Settings;
+import org.elasticsearch.river.ubb.support.ContextFactory;
+import org.elasticsearch.river.ubb.support.Harvester;
+import org.elasticsearch.river.ubb.support.JsonFileLoader;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 /**
- * @author EEA
+ * @author European Environment Agency (EEA)
+ * @author Hemed Al Ruwehy
  * <p>
  * Modified by Hemed Ali Al Ruwehy, The University of Bergen Library
  * @since 09-03-2015
@@ -35,7 +36,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         super(riverName, settings);
         harvester = new Harvester();
         harvester.client(client).riverName(riverName.name());
-        addHarvesterSettings(settings);
+        buildHarvester(settings);
     }
 
     /**
@@ -45,6 +46,24 @@ public class RDFRiver extends AbstractRiverComponent implements River {
     private static Map<String, Object> extractSettings(RiverSettings settings, String key) {
         return (Map<String, Object>) settings.settings().get(key);
     }
+
+    /**
+     * Type casting accessors for river settings
+     **/
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> extractSettings(RiverSettings settings) {
+        if (settings.settings().containsKey(Settings.UBB_SETTINGS_KEY)) {
+            return (Map<String, Object>) settings.settings().get(Settings.UBB_SETTINGS_KEY);
+        }
+        //For backward compatibility
+        if (settings.settings().containsKey(Settings.RIVER_SETTINGS_KEY)) {
+            return (Map<String, Object>) settings.settings().get(Settings.RIVER_SETTINGS_KEY);
+        }
+        throw new IllegalArgumentException(String.format(
+                "No key in the river settings. Expected \"%s\" or  \"%s\" ",
+                Settings.RIVER_SETTINGS_KEY, Settings.UBB_SETTINGS_KEY));
+    }
+
 
     @SuppressWarnings("unchecked")
     private static Map<String, String> getStrStrMapFromSettings(Map<String, Object> settings, String key) {
@@ -63,7 +82,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 
     private static String loadContext(Map<String, Object> settings, String key) {
         Object values = settings.get(key);
-        logger.info("Reading context from: " + values);
+        logger.info("Reading from context: " + values);
         return new JsonFileLoader().resolveToString(values.toString());
     }
 
@@ -78,13 +97,11 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         return (List<String>) settings.get(key);
     }
 
-    private void addHarvesterSettings(RiverSettings settings) {
-        if (!settings.settings().containsKey(EEASettings.RIVER_SETTINGS_KEY)) {
-            throw new IllegalArgumentException(
-                    String.format("There is no \"%s\" key in the river settings.", EEASettings.RIVER_SETTINGS_KEY));
-        }
-
-        Map<String, Object> rdfSettings = extractSettings(settings, EEASettings.RIVER_SETTINGS_KEY);
+    /**
+     * Builds harvester
+     */
+    private void buildHarvester(RiverSettings settings) {
+        Map<String, Object> rdfSettings = extractSettings(settings);
         harvester.rdfIndexType(XContentMapValues.nodeStringValue(
                 rdfSettings.get("indexType"), "full"))
                 .rdfStartTime(XContentMapValues.nodeStringValue(
@@ -99,25 +116,25 @@ public class RDFRiver extends AbstractRiverComponent implements River {
                         rdfSettings.get("queryPath"), ""))
                 .rdfNumberOfBulkActions(XContentMapValues.nodeLongValue(
                         rdfSettings.get("bulkActions"),
-                        EEASettings.DEFAULT_NUMBER_OF_BULK_ACTIONS))
+                        Settings.DEFAULT_NUMBER_OF_BULK_ACTIONS))
                 .rdfUpdateDocuments(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("updateDocuments"),
-                        EEASettings.DEFAULT_UPDATE_DOCUMENTS))
+                        Settings.DEFAULT_UPDATE_DOCUMENTS))
                 .rdfQueryType(XContentMapValues.nodeStringValue(
                         rdfSettings.get("queryType"),
-                        EEASettings.DEFAULT_QUERYTYPE))
+                        Settings.DEFAULT_QUERYTYPE))
                 .rdfListType(XContentMapValues.nodeStringValue(
                         rdfSettings.get("listtype"),
-                        EEASettings.DEFAULT_LIST_TYPE))
+                        Settings.DEFAULT_LIST_TYPE))
                 .rdfAddLanguage(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("addLanguage"),
-                        EEASettings.DEFAULT_ADD_LANGUAGE))
+                        Settings.DEFAULT_ADD_LANGUAGE))
                 .rdfLanguage(XContentMapValues.nodeStringValue(
                         rdfSettings.get("language"),
-                        EEASettings.DEFAULT_LANGUAGE))
+                        Settings.DEFAULT_LANGUAGE))
                 .rdfAddUriForResource(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("includeResourceURI"),
-                        EEASettings.DEFAULT_ADD_URI))
+                        Settings.DEFAULT_ADD_URI))
                 .removeIllegalCharsForSuggestion(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("removeIllegalCharsForSuggestion"),
                         true))
@@ -125,29 +142,29 @@ public class RDFRiver extends AbstractRiverComponent implements River {
                         rdfSettings.get("deleteRiverAfterCreation"), false))
                 .maxSuggestInputLength(XContentMapValues.nodeIntegerValue(
                         rdfSettings.get("maxSuggestInputLength"),
-                        EEASettings.DEFAULT_MAX_SUGGEST_INPUT_LENGTH))
+                        Settings.DEFAULT_MAX_SUGGEST_INPUT_LENGTH))
                 /*.rdfURIDescription(XContentMapValues.nodeStringValue(
                        rdfSettings.get("uriDescription"),
                        EEASettings.DEFAULT_URI_DESCRIPTION))
                 */
                 .rdfSyncConditions(XContentMapValues.nodeStringValue(
                         rdfSettings.get("syncConditions"),
-                        EEASettings.DEFAULT_SYNC_COND))
+                        Settings.DEFAULT_SYNC_COND))
                 /*.rdfContextProp(XContentMapValues.nodeStringValue(
                         rdfSettings.get("context"), ""))
                         */
                 .rdfSyncTimeProp(XContentMapValues.nodeStringValue(
                         rdfSettings.get("syncTimeProp"),
-                        EEASettings.DEFAULT_SYNC_TIME_PROP))
+                        Settings.DEFAULT_SYNC_TIME_PROP))
                 .rdfSyncOldData(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("syncOldData"),
-                        EEASettings.DEFAULT_SYNC_OLD_DATA));
+                        Settings.DEFAULT_SYNC_OLD_DATA));
 
         if (rdfSettings.containsKey("uriDescription")) {
             harvester.rdfURIDescription(getStrListFromSettings(rdfSettings, "uriDescription"));
         } else {
             //Convert the default array to List
-            List<String> defaultUriList = Arrays.asList(EEASettings.DEFAULT_URI_DESCRIPTION);
+            List<String> defaultUriList = Arrays.asList(Settings.DEFAULT_URI_DESCRIPTION);
             harvester.rdfURIDescription(defaultUriList);
         }
         if (rdfSettings.containsKey("proplist")) {
@@ -156,7 +173,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         if (rdfSettings.containsKey("query")) {
             harvester.rdfQuery(getStrListFromSettings(rdfSettings, "query"));
         } else {
-            harvester.rdfQuery(EEASettings.DEFAULT_QUERIES);
+            harvester.rdfQuery(Settings.DEFAULT_QUERIES);
         }
         /*if (rdfSettings.containsKey("normProp")) {
             harvester.rdfNormalizationProp(getStrStrMapFromSettings(rdfSettings, "normProp"));
@@ -181,22 +198,20 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         }
         if (settings.settings().containsKey("index")) {
             Map<String, Object> indexSettings = extractSettings(settings, "index");
-            harvester.index(XContentMapValues.nodeStringValue(
-                    indexSettings.get("index"),
-                    EEASettings.DEFAULT_INDEX_NAME))
-                    .type(XContentMapValues.nodeStringValue(
-                            indexSettings.get("type"),
-                            EEASettings.DEFAULT_TYPE_NAME));
+            harvester.index(XContentMapValues.nodeStringValue(indexSettings.get("index"),
+                    Settings.DEFAULT_INDEX_NAME))
+                    .type(XContentMapValues.nodeStringValue(indexSettings.get("type"),
+                            Settings.DEFAULT_TYPE_NAME));
         } else {
-            harvester.index(EEASettings.DEFAULT_INDEX_NAME)
-                    .type(EEASettings.DEFAULT_TYPE_NAME);
+            harvester.index(Settings.DEFAULT_INDEX_NAME).type(Settings.DEFAULT_TYPE_NAME);
         }
     }
 
     @Override
     public void start() {
-        harvesterThread = EsExecutors.daemonThreadFactory(
-                settings.globalSettings(), "eea_rdf_river(" + riverName().name() + ")")
+        harvesterThread = EsExecutors
+                .daemonThreadFactory(settings.globalSettings(),
+                        "ubbRiver(" + riverName().name() + ")")
                 .newThread(harvester);
         harvesterThread.start();
     }

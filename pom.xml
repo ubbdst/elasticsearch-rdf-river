@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.elasticsearch.plugin.river.eea_rdf</groupId>
-    <artifactId>eea-rdf-river-plugin</artifactId>
+    <groupId>org.elasticsearch.plugin.river.ubb</groupId>
+    <artifactId>ubb-rdf-river-plugin</artifactId>
     <version>1.7.6</version>
 
     <packaging>jar</packaging>
 
-    <name>eea-rdf-river-plugin</name>
+    <name>ubb-rdf-river-plugin</name>
     <description>Elasticsearch RDF River Plugin</description>
 
     <inceptionYear>2013</inceptionYear>

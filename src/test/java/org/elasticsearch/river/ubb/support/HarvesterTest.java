@@ -1,11 +1,10 @@
-package org.elasticsearch.river.eea_rdf.support;
+package org.elasticsearch.river.ubb.support;
 
 import junit.framework.TestCase;
 
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.elasticsearch.river.eea_rdf.support.Harvester;
 
 import org.apache.jena.datatypes.RDFDatatype;
 import org.apache.jena.rdf.model.Literal;
@@ -27,7 +26,7 @@ public class HarvesterTest extends TestCase {
 
 	@Test
 	public void testMapToString() throws IllegalAccessException, IllegalArgumentException, InvocationTargetException, InstantiationException, ClassNotFoundException, NoSuchMethodException, SecurityException {
-		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
+		Object test = Class.forName("org.elasticsearch.river.ubb.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("mapToString", Map.class);
 		method.setAccessible(true);
 		Harvester harvester = mock(Harvester.class);
@@ -59,7 +58,7 @@ public class HarvesterTest extends TestCase {
 	
 	@Test
 	public void testgetLabelForUri() throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException, NoSuchFieldException {
-		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
+		Object test = Class.forName("org.elasticsearch.river.ubb.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getLabelForUriFromTDB", String.class);
 		method.setAccessible(true);
 		
@@ -83,7 +82,7 @@ public class HarvesterTest extends TestCase {
 	
 	@Test
 	public void testgetStringForResultforBoolean() throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException, NoSuchFieldException {
-		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
+		Object test = Class.forName("org.elasticsearch.river.ubb.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
 		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUri", String.class);
@@ -116,7 +115,7 @@ public class HarvesterTest extends TestCase {
 	
 	@Test
 	public void testgetStringForResultforByte() throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException, NoSuchFieldException {
-		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
+		Object test = Class.forName("org.elasticsearch.river.ubb.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
 		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUri", String.class);
@@ -149,7 +148,7 @@ public class HarvesterTest extends TestCase {
 	
 	@Test
 	public void testgetStringForResultforDouble() throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException, NoSuchFieldException {
-		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
+		Object test = Class.forName("org.elasticsearch.river.ubb.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
 		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUriFromTDB", String.class);
@@ -182,7 +181,7 @@ public class HarvesterTest extends TestCase {
 
 	@Test
 	public void testgetStringForResultforFloat() throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException, NoSuchFieldException {
-		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
+		Object test = Class.forName("org.elasticsearch.river.ubb.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
 		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUri", String.class);
@@ -214,7 +213,7 @@ public class HarvesterTest extends TestCase {
 
 	@Test
 	public void testgetStringForResultforInteger() throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException, NoSuchFieldException {
-		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
+		Object test = Class.forName("org.elasticsearch.river.ubb.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
 		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUriFromTDB", String.class);
@@ -246,7 +245,7 @@ public class HarvesterTest extends TestCase {
 
 	@Test
 	public void testgetStringForResultforLong() throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException, NoSuchFieldException {
-		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
+		Object test = Class.forName("org.elasticsearch.river.ubb.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
 		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUriFromTDB", String.class);
@@ -278,7 +277,7 @@ public class HarvesterTest extends TestCase {
 
 	@Test
 	public void testgetStringForResultforShort() throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException, NoSuchFieldException {
-		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
+		Object test = Class.forName("org.elasticsearch.river.ubb.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
 		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUriFromTDB", String.class);
@@ -310,7 +309,7 @@ public class HarvesterTest extends TestCase {
 
 	@Test
 	public void testgetStringForResultforFreeText() throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException, NoSuchFieldException {
-		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
+		Object test = Class.forName("org.elasticsearch.river.ubb.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
 		Method othermethod = test.getClass().getDeclaredMethod("getLabelForUriFromTDB", String.class);
@@ -333,7 +332,7 @@ public class HarvesterTest extends TestCase {
 
 	@Test
 	public void testgetStringForResultforResource() throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException, NoSuchFieldException {
-		Object test = Class.forName("org.elasticsearch.river.eea_rdf.support.Harvester").newInstance();
+		Object test = Class.forName("org.elasticsearch.river.ubb.support.Harvester").newInstance();
 		Method method = test.getClass().getDeclaredMethod("getStringForResult", RDFNode.class);
 		method.setAccessible(true);
 		

@@ -1,11 +1,11 @@
-package org.elasticsearch.river.eea_rdf.support;
+package org.elasticsearch.river.ubb.support;
 
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.river.eea_rdf.utils.FileManager;
+import org.elasticsearch.river.ubb.utils.FileManager;
 
 import java.util.Map;
 import java.util.Objects;

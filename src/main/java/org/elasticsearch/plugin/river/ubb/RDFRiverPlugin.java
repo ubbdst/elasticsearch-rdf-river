@@ -1,10 +1,10 @@
-package org.elasticsearch.plugin.river.eea_rdf.eea_rdf_river_plugin;
+package org.elasticsearch.plugin.river.ubb;
 
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.river.RiversModule;
-import org.elasticsearch.river.eea_rdf.RDFRiverModule;
-import org.elasticsearch.river.eea_rdf.settings.EEASettings;
+import org.elasticsearch.river.ubb.RDFRiverModule;
+import org.elasticsearch.river.ubb.settings.Settings;
 
 /**
  * @author iulia, EEA
@@ -17,7 +17,7 @@ public class RDFRiverPlugin extends AbstractPlugin {
 
     @Override
     public String name() {
-        return EEASettings.RIVER_PLUGIN_NAME;
+        return Settings.RIVER_PLUGIN_NAME;
     }
 
     @Override
@@ -26,7 +26,7 @@ public class RDFRiverPlugin extends AbstractPlugin {
     }
 
     public void onModule(RiversModule module) {
-        module.registerRiver(EEASettings.RIVER_SETTINGS_KEY, RDFRiverModule.class);
+        module.registerRiver(Settings.RIVER_SETTINGS_KEY, RDFRiverModule.class);
     }
 }
 
