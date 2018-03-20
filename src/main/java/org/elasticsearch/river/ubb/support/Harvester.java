@@ -31,11 +31,12 @@ import java.util.*;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.river.ubb.settings.RiverUtils.getTimeFormatAsString;
+import static org.elasticsearch.river.ubb.settings.RiverUtils.isNullOrEmpty;
 
 /**
  * @author European Environment Agency (EEA) <br>
  * @author Hemed Al Ruwehy
- *
+ * <p>
  * Customized to accommodate requests from the University of Bergen Library.<br>
  * by Hemed Ali, 09-03-2015
  */
@@ -86,7 +87,7 @@ public class Harvester implements Runnable {
     private Dataset tdbDataset = null;
     private String queryPath;
     private boolean deleteRiverMappingAfterCreation = false;
-    private boolean generateSortLabel = true;
+    private boolean generateSortLabel = false;
 
     /**
      * Sets the {@link Harvester}'s {@link #rdfUrls} parameter
@@ -264,6 +265,16 @@ public class Harvester implements Runnable {
     public Harvester deleteRiverAfterCreation(boolean flag) {
         if (flag) {
             deleteRiverMappingAfterCreation = true;
+        }
+        return this;
+    }
+
+    /**
+     * Decides whether to generate sort label
+     */
+    public Harvester generateSortLabel(boolean flag) {
+        if (flag) {
+            generateSortLabel = true;
         }
         return this;
     }
@@ -1106,27 +1117,20 @@ public class Harvester implements Runnable {
     }
 
     /**
-     * Harvest from TDB using queries specified from {@link #rdfQueries and/or path specified in {@link #queryPath}.
+     * Harvest from TDB using queries specified from {@link #rdfQueries
+     * and/or path specified in {@link #queryPath}.
      */
     private void harvestFromTDB() {
-        //Define queries
         Query queryFromList, queryFromPath = null;
-
-        //Define dataset to query
         Dataset dataset;
-
-        //Create a data set object
         dataset = TDBFactory.createDataset(tdbLocation);
-
-        //Use this data set throughout
         this.setTDBDataset(dataset);
 
-        //Harvesting from a given SPARQL path
+        //Harvesting using from file path
         if (Strings.hasText(queryPath)) {
-            logger.info("Harvesting from TDB store [{}] using query path [{}] " +
-                            "for river [{}] on index [{}] and type [{}]",
+            logger.info("Harvesting from TDB [{}] using query path [{}] for river [{}] " +
+                            "on index [{}] and type [{}]",
                     tdbLocation, queryPath, riverName, indexName, typeName);
-
             try {
                 queryFromPath = QueryFactory.read(queryPath);
             } catch (QueryParseException qpe) {
@@ -1134,14 +1138,13 @@ public class Harvester implements Runnable {
             }
 
             if (queryFromPath != null) {
-                harvestInChunks(dataset, queryFromPath);
+                harvest(dataset, queryFromPath);
             }
         }
 
         //Harvesting from a list of RDF Queries
         for (String rdfQuery : rdfQueries) {
-            logger.info(
-                    "Harvesting from TDB store [{}] for river [{}] on index [{}] and type [{}]",
+            logger.info("Harvesting from TDB store [{}] for river [{}] on index [{}] and type [{}]",
                     tdbLocation, riverName, indexName, typeName);
 
             try {
@@ -1154,7 +1157,7 @@ public class Harvester implements Runnable {
             }
 
             if (queryFromList != null) {
-                harvestInChunks(dataset, queryFromList);
+                harvest(dataset, queryFromList);
             }
 
         }
@@ -1168,6 +1171,7 @@ public class Harvester implements Runnable {
      * @param dataset a given dataset to query against
      */
     private void harvest(Dataset dataset, Query query) {
+        long startTime = System.currentTimeMillis();
         QueryExecution qexec;
 
         //Begin READ transaction
@@ -1194,7 +1198,8 @@ public class Harvester implements Runnable {
 
 
     /**
-     * Harvest data using a given TDB dataset in chunks
+     * Harvest data using a given TDB dataset in chunks. Note that this is an experimental method
+     * and maybe removed in the future
      *
      * @param query   a given query
      * @param dataset a given dataset to query against
@@ -1204,40 +1209,46 @@ public class Harvester implements Runnable {
         boolean keepQuerying = true;
         long limit = Settings.DEFAULT_QUERY_LIMIT; //TODO: Get this from user
         long offset = 0;
+        Model defaultModel = ModelFactory.createDefaultModel();
 
         //Begin READ transaction
         dataset.begin(ReadWrite.READ);
         do {
             query.setLimit(limit);
             query.setOffset(offset);
+
             try (QueryExecution queryExecution = QueryExecutionFactory.create(query, dataset)) {
                 Model model = getModel(queryExecution);
-                // Increment offset
-                offset = offset + limit;
                 // Decide whether to keep querying or not
                 if (Objects.isNull(model) || model.isEmpty()) {
                     keepQuerying = false;
                 }
                 // Send model to Elasticsearch
-                if (model != null && !model.isEmpty()) {
-                    addModelToElasticsearch(model, client.prepareBulk());
+                if (model != null) {
+                    defaultModel.add(model);
                     //After indexing, free up resources
-                    model.close();
-                    queryExecution.close();
+                    //model.close();
+                    //queryExecution.close();
                 }
+                //Increment offset
+                offset = offset + limit;
             } catch (Exception e) {
                 logger.error("Exception during harvesting using TDB [{}] ", e.getLocalizedMessage());
                 e.printStackTrace();
             }
         }
         while (keepQuerying);
+        addModelToElasticsearch(defaultModel, client.prepareBulk());
+        //End transaction
+        defaultModel.close();
         dataset.end();
 
+
         logger.info("\n-------------------------------------------"
-                // + "\n\tTotal triples harvested: " + numberOfTriples
+                + "\n\tDocuments indexed (chunks):" + client.prepareCount(indexName).setTypes(typeName).get().getCount()
                 + "\n\tIndex: " + indexName
                 + "\n\tType: " + typeName
-                + "\n\tTime taken: " + getTimeFormatAsString(System.currentTimeMillis() - startTime)
+                + "\n\tTime for harvesting and indexing: " + getTimeFormatAsString(System.currentTimeMillis() - startTime)
                 + "\n-------------------------------------------");
 
     }
@@ -1303,23 +1314,19 @@ public class Harvester implements Runnable {
                 RDFNode node = niter.next();
                 currentValue = getStringForResult(rs, node);
 
-                //TODO: Create a method that does a coalesce e.g Utils.getSortLabel(property, value)
-                //If we have to generate label sort
-                if (generateSortLabel) {
-                    if (node.isLiteral()) {
-                        logger.info("Property: " + property);
-                        if (property.equals("http://www.w3.org/2004/02/skos/core#prefLabel")) {
-                            jsonMap.put("labelSort", RiverUtils.removeSpecialChars(currentValue));
-                        }
-                        if (property.equals("http://purl.org/dc/terms/title")) {
-                            jsonMap.put("labelSort", RiverUtils.removeSpecialChars(currentValue));
-                        }
-                    }
-                }
-
                 //If a key contains empty value, skip and do not index
                 if (currentValue.isEmpty()) {
                     continue;
+                }
+
+                //If we have to generate label sort
+                if (generateSortLabel) {
+                    if (node.isLiteral()) {
+                        String sortLabel = RiverUtils.getLabelCoalesce(property, currentValue);
+                        if(!sortLabel.isEmpty()) {
+                            jsonMap.put(Settings.SORT_LABEL_NAME, sortLabel);
+                        }
+                    }
                 }
 
                 if (addLanguage) {
@@ -1346,15 +1353,6 @@ public class Harvester implements Runnable {
                             //These characters have special meaning in Elasticsearch,
                             //so we remove them in a suggestion list.
                             suggestValue = RiverUtils.removeSpecialChars(suggestValue);
-                            /*suggestValue = suggestValue
-                                    //.replace('/', ' ')
-                                    .replace(':', ' ')
-                                    .replace('[', ' ')
-                                    .replace(']', ' ')
-                                    .replace('.', ' ')
-                                    .replace('?', ' ')
-                                    .trim();
-                                    */
                         }
                         //Add value to the list
                         suggestInputs.add(suggestValue.toLowerCase());
@@ -1435,14 +1433,22 @@ public class Harvester implements Runnable {
 
     /**
      * Index or update all the resources in a Jena Model to ES Note: Update
-     * works if the user has specified the flag "updateDocuments" to true in
+     * works if the user has specified the flag <tt>updateDocuments</tt> to true in
      * the river settings. It is set to false by default. By doing this, you
-     * can partial update the documents without full re-indexing.
+     * can partial update documents without full reindexing.
      *
      * @param model       the model to index
      * @param bulkRequest a BulkRequestBuilder
      */
-    private void addModelToElasticsearch(Model model, BulkRequestBuilder bulkRequest) throws IOException {
+    private void addModelToElasticsearch(Model model, BulkRequestBuilder bulkRequest) {
+        logger.info("Indexing into Elasticsearch for river [{}] on index [{}] and type [{}]",
+                riverName, indexName, typeName);
+
+        //Check for empty model
+        if (Objects.isNull(model) || model.isEmpty()) {
+            logger.warn("Cannot index empty model for [{}/{}]. Aborting ...", indexName, typeName);
+            return;
+        }
         long startTime = System.currentTimeMillis();
         long bulkLength = 0;
         HashSet<Property> properties = new HashSet<>();
@@ -1501,20 +1507,16 @@ public class Harvester implements Runnable {
             }
 
         }
-        //Show time taken to perfom the action
-        /*String actionPerformed = updateDocuments ? "updated" : "indexed";
+
+        //Show time taken to perform the action
+        String actionPerformed = updateDocuments ? "updated" : "indexed";
         logger.info("\n-------------------------------------------"
                 + "\n\tTotal documents " + actionPerformed + ": " + bulkLength
                 + "\n\tRiver: " + riverName
                 + "\n\tIndex: " + indexName
                 + "\n\tType: " + typeName
-                + "\n\tTime taken: " + getTimeFormatAsString(System.currentTimeMillis() - startTime)
+                + "\n\tTook: " + getTimeFormatAsString(System.currentTimeMillis() - startTime)
                 + "\n-------------------------------------------");
-                */
-
-        logger.info("Indexed {} docs on index [{}] and type [{}] in {}  ",
-                bulkLength, indexName, typeName,
-                getTimeFormatAsString(System.currentTimeMillis() - startTime));
     }
 
     /**

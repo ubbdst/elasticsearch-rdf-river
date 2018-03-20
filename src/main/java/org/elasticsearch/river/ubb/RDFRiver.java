@@ -140,6 +140,8 @@ public class RDFRiver extends AbstractRiverComponent implements River {
                         true))
                 .deleteRiverAfterCreation(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("deleteRiverAfterCreation"), false))
+                .generateSortLabel(XContentMapValues.nodeBooleanValue(
+                        rdfSettings.get("generateSortLabel"), false))
                 .maxSuggestInputLength(XContentMapValues.nodeIntegerValue(
                         rdfSettings.get("maxSuggestInputLength"),
                         Settings.DEFAULT_MAX_SUGGEST_INPUT_LENGTH))

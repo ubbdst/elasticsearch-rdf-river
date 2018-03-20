@@ -51,5 +51,16 @@ public final class Settings {
     public final static String DEFAULT_SYNC_TIME_PROP = "http://cr.eionet.europa.eu/ontologies/contreg.rdf#lastRefreshed";
     public final static Boolean DEFAULT_SYNC_OLD_DATA = false;
     public final static long DEFAULT_QUERY_LIMIT = 1000;
+    public static final String SORT_LABEL_NAME = "labelSort";
+
+    //In order of priority
+    public static final String[] SORT_LABELS = {
+            "http://purl.org/dc/terms/title",
+            "http://www.w3.org/2004/02/skos/core#prefLabel",
+            "http://xmlns.com/foaf/0.1/name",
+            "http://www.w3.org/2000/01/rdf-schema#label"
+    };
+
+
 
 }

@@ -56,7 +56,7 @@ public class RiverUtils {
      */
     public static String getTimeFormatAsString(long timeInMilliSeconds) {
         //Time in seconds
-        double timeInSeconds = timeInMilliSeconds / 1000.0;
+        double timeInSeconds = timeInMilliSeconds / 1000.00;
         //In minutes
         if (timeInSeconds >= 60 && timeInSeconds < 60 * 60) {
             return timeInSeconds / 60 + " minutes";
@@ -68,6 +68,23 @@ public class RiverUtils {
         //default unit
         return timeInSeconds + " seconds";
     }
+
+
+    /**
+     * Gets label coalesce to be used for sorting
+     *
+     * @param uri a URI for the label
+     * @param labelValue a lexical value of the label
+     */
+    public static String getLabelCoalesce(String uri, String labelValue) {
+        for (String labelUri : Settings.SORT_LABELS) {
+            if (uri.equals(labelUri) && !labelValue.isEmpty()) {
+                return removeSpecialChars(labelValue);
+            }
+        }
+        return "";
+    }
+
 
     /**
      * Removes illegal XML characters

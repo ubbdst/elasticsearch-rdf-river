@@ -21,4 +21,10 @@ public class EEASettingsTest {
         assertEquals("anakonda", RiverUtils.removeSpecialChars("[ \"anakonda]"));
         System.out.println(RiverUtils.removeSpecialChars("hamad, ali rashid's masauni"));
     }
+
+    @Test
+    public void getSortLabel(){
+        assertEquals("mama" , RiverUtils.getLabelCoalesce("http://purl.org/dc/terms/title", "mama"));
+        assertEquals("" , RiverUtils.getLabelCoalesce("http://purl.org/dc/terms/title", ""));
+    }
 }
