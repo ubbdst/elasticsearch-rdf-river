@@ -7,7 +7,7 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.river.*;
-import org.elasticsearch.river.ubb.settings.Settings;
+import org.elasticsearch.river.ubb.settings.Defaults;
 import org.elasticsearch.river.ubb.support.ContextFactory;
 import org.elasticsearch.river.ubb.support.Harvester;
 import org.elasticsearch.river.ubb.support.JsonFileLoader;
@@ -52,16 +52,11 @@ public class RDFRiver extends AbstractRiverComponent implements River {
      **/
     @SuppressWarnings("unchecked")
     private static Map<String, Object> extractSettings(RiverSettings settings) {
-        if (settings.settings().containsKey(Settings.UBB_SETTINGS_KEY)) {
-            return (Map<String, Object>) settings.settings().get(Settings.UBB_SETTINGS_KEY);
+        if (settings.settings().containsKey(Defaults.EEA_SETTINGS_KEY)) {
+            return (Map<String, Object>) settings.settings().get(Defaults.EEA_SETTINGS_KEY);
         }
-        //For backward compatibility
-        if (settings.settings().containsKey(Settings.RIVER_SETTINGS_KEY)) {
-            return (Map<String, Object>) settings.settings().get(Settings.RIVER_SETTINGS_KEY);
-        }
-        throw new IllegalArgumentException(String.format(
-                "No key in the river settings. Expected \"%s\" or  \"%s\" ",
-                Settings.RIVER_SETTINGS_KEY, Settings.UBB_SETTINGS_KEY));
+        throw new IllegalArgumentException(String.
+                format("No key in the river settings. Expected \"%s\"", Defaults.EEA_SETTINGS_KEY));
     }
 
 
@@ -116,25 +111,25 @@ public class RDFRiver extends AbstractRiverComponent implements River {
                         rdfSettings.get("queryPath"), ""))
                 .rdfNumberOfBulkActions(XContentMapValues.nodeLongValue(
                         rdfSettings.get("bulkActions"),
-                        Settings.DEFAULT_NUMBER_OF_BULK_ACTIONS))
+                        Defaults.DEFAULT_NUMBER_OF_BULK_ACTIONS))
                 .rdfUpdateDocuments(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("updateDocuments"),
-                        Settings.DEFAULT_UPDATE_DOCUMENTS))
+                        Defaults.DEFAULT_UPDATE_DOCUMENTS))
                 .rdfQueryType(XContentMapValues.nodeStringValue(
                         rdfSettings.get("queryType"),
-                        Settings.DEFAULT_QUERYTYPE))
+                        Defaults.DEFAULT_QUERYTYPE))
                 .rdfListType(XContentMapValues.nodeStringValue(
                         rdfSettings.get("listtype"),
-                        Settings.DEFAULT_LIST_TYPE))
+                        Defaults.DEFAULT_LIST_TYPE))
                 .rdfAddLanguage(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("addLanguage"),
-                        Settings.DEFAULT_ADD_LANGUAGE))
+                        Defaults.DEFAULT_ADD_LANGUAGE))
                 .rdfLanguage(XContentMapValues.nodeStringValue(
                         rdfSettings.get("language"),
-                        Settings.DEFAULT_LANGUAGE))
+                        Defaults.DEFAULT_LANGUAGE))
                 .rdfAddUriForResource(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("includeResourceURI"),
-                        Settings.DEFAULT_ADD_URI))
+                        Defaults.DEFAULT_ADD_URI))
                 .removeIllegalCharsForSuggestion(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("removeIllegalCharsForSuggestion"),
                         true))
@@ -144,29 +139,29 @@ public class RDFRiver extends AbstractRiverComponent implements River {
                         rdfSettings.get("generateSortLabel"), false))
                 .maxSuggestInputLength(XContentMapValues.nodeIntegerValue(
                         rdfSettings.get("maxSuggestInputLength"),
-                        Settings.DEFAULT_MAX_SUGGEST_INPUT_LENGTH))
+                        Defaults.DEFAULT_MAX_SUGGEST_INPUT_LENGTH))
                 /*.rdfURIDescription(XContentMapValues.nodeStringValue(
                        rdfSettings.get("uriDescription"),
                        EEASettings.DEFAULT_URI_DESCRIPTION))
                 */
                 .rdfSyncConditions(XContentMapValues.nodeStringValue(
                         rdfSettings.get("syncConditions"),
-                        Settings.DEFAULT_SYNC_COND))
+                        Defaults.DEFAULT_SYNC_COND))
                 /*.rdfContextProp(XContentMapValues.nodeStringValue(
                         rdfSettings.get("context"), ""))
                         */
                 .rdfSyncTimeProp(XContentMapValues.nodeStringValue(
                         rdfSettings.get("syncTimeProp"),
-                        Settings.DEFAULT_SYNC_TIME_PROP))
+                        Defaults.DEFAULT_SYNC_TIME_PROP))
                 .rdfSyncOldData(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("syncOldData"),
-                        Settings.DEFAULT_SYNC_OLD_DATA));
+                        Defaults.DEFAULT_SYNC_OLD_DATA));
 
         if (rdfSettings.containsKey("uriDescription")) {
             harvester.rdfURIDescription(getStrListFromSettings(rdfSettings, "uriDescription"));
         } else {
             //Convert the default array to List
-            List<String> defaultUriList = Arrays.asList(Settings.DEFAULT_URI_DESCRIPTION);
+            List<String> defaultUriList = Arrays.asList(Defaults.DEFAULT_URI_DESCRIPTION);
             harvester.rdfURIDescription(defaultUriList);
         }
         if (rdfSettings.containsKey("proplist")) {
@@ -175,7 +170,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         if (rdfSettings.containsKey("query")) {
             harvester.rdfQuery(getStrListFromSettings(rdfSettings, "query"));
         } else {
-            harvester.rdfQuery(Settings.DEFAULT_QUERIES);
+            harvester.rdfQuery(Defaults.DEFAULT_QUERIES);
         }
         /*if (rdfSettings.containsKey("normProp")) {
             harvester.rdfNormalizationProp(getStrStrMapFromSettings(rdfSettings, "normProp"));
@@ -201,11 +196,11 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         if (settings.settings().containsKey("index")) {
             Map<String, Object> indexSettings = extractSettings(settings, "index");
             harvester.index(XContentMapValues.nodeStringValue(indexSettings.get("index"),
-                    Settings.DEFAULT_INDEX_NAME))
+                    Defaults.DEFAULT_INDEX_NAME))
                     .type(XContentMapValues.nodeStringValue(indexSettings.get("type"),
-                            Settings.DEFAULT_TYPE_NAME));
+                            Defaults.DEFAULT_TYPE_NAME));
         } else {
-            harvester.index(Settings.DEFAULT_INDEX_NAME).type(Settings.DEFAULT_TYPE_NAME);
+            harvester.index(Defaults.DEFAULT_INDEX_NAME).type(Defaults.DEFAULT_TYPE_NAME);
         }
     }
 

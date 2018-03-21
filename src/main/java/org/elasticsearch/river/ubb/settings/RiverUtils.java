@@ -9,17 +9,24 @@ public class RiverUtils {
 
     //Elasticsearch reserved characters (without minus sign and forward slash)
     private static final char[] SPECIAL_CHARS = {
-            '*', '"', '\\', '=', '&', '|', '>', '<', '!', '(', ')',
-            '{', '}', '^', '~', '?', ':', '!', '[', ']', '.'
+            '*', '"', '\\', '=', '&', '|', '>', '<', '!',
+            '(', ')', '{', '}', '^', '~', '?', ':', '!',
+            '[', ']', '“', '”', '\''
+    };
+
+    // Characters that should be removed in the auto-complete endpoint
+    private static final char[] AUTO_COMPLETE_CHARS = {
+            ':', '[', ']', '.', '?'
     };
 
     /**
      * Removes special characters from the given string
      *
      * @param s a given string
+     *          @param chars an array of characters to be removed
      * @return this string where all special characters, if exist, have been removed
      */
-    public static String removeSpecialChars(String s) {
+    public static String removeSpecialChars(String s, char [] chars) {
         if (isNullOrEmpty(s)) {
             return s;
         }
@@ -29,6 +36,27 @@ public class RiverUtils {
             }
         }
         return s.trim();
+    }
+
+
+    /**
+     * Removes special characters from the given string
+     *
+     * @param s a given string
+     * @return this string where all special characters, if exist, have been removed
+     */
+    public static String removeSpecialChars(String s) {
+       return removeSpecialChars(s, SPECIAL_CHARS);
+    }
+
+    /**
+     * Removes special characters from the given string
+     *
+     * @param s a given string
+     * @return this string where all special characters, if exist, have been removed
+     */
+    public static String removeSpecialCharsForAutoSuggest(String s) {
+        return removeSpecialChars(s, AUTO_COMPLETE_CHARS);
     }
 
 
@@ -76,8 +104,8 @@ public class RiverUtils {
      * @param uri a URI for the label
      * @param labelValue a lexical value of the label
      */
-    public static String getLabelCoalesce(String uri, String labelValue) {
-        for (String labelUri : Settings.SORT_LABELS) {
+    public static String constructLabelSort(String uri, String labelValue) {
+        for (String labelUri : Defaults.SORT_LABELS) {
             if (uri.equals(labelUri) && !labelValue.isEmpty()) {
                 return removeSpecialChars(labelValue);
             }

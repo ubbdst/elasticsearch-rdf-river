@@ -23,7 +23,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.river.ubb.settings.RiverUtils;
-import org.elasticsearch.river.ubb.settings.Settings;
+import org.elasticsearch.river.ubb.settings.Defaults;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -31,7 +31,6 @@ import java.util.*;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.river.ubb.settings.RiverUtils.getTimeFormatAsString;
-import static org.elasticsearch.river.ubb.settings.RiverUtils.isNullOrEmpty;
 
 /**
  * @author European Environment Agency (EEA) <br>
@@ -852,7 +851,7 @@ public class Harvester implements Runnable {
         for (String uri : rdfUrls) {
             currentBulk.add(uri);
 
-            if (currentBulk.size() == Settings.DEFAULT_BULK_REQ) {
+            if (currentBulk.size() == Defaults.DEFAULT_BULK_REQ) {
                 bulks.add(currentBulk);
                 currentBulk = new ArrayList<String>();
             }
@@ -1207,7 +1206,7 @@ public class Harvester implements Runnable {
     private void harvestInChunks(Dataset dataset, Query query) {
         long startTime = System.currentTimeMillis();
         boolean keepQuerying = true;
-        long limit = Settings.DEFAULT_QUERY_LIMIT; //TODO: Get this from user
+        long limit = Defaults.DEFAULT_QUERY_LIMIT; //TODO: Get this from user
         long offset = 0;
         Model defaultModel = ModelFactory.createDefaultModel();
 
@@ -1292,10 +1291,10 @@ public class Harvester implements Runnable {
 
         if (addUriForResource) {
             results.add(rs.toString());
-            String normalizedProperty = Settings.DEFAULT_RESOURCE_URI;
+            String normalizedProperty = Defaults.DEFAULT_RESOURCE_URI;
             //If a property is defined in the normProp list, then use normalized(shorten) property.
-            if (willNormalizeProp && normalizeProp.containsKey(Settings.DEFAULT_RESOURCE_URI)) {
-                normalizedProperty = normalizeProp.get(Settings.DEFAULT_RESOURCE_URI);
+            if (willNormalizeProp && normalizeProp.containsKey(Defaults.DEFAULT_RESOURCE_URI)) {
+                normalizedProperty = normalizeProp.get(Defaults.DEFAULT_RESOURCE_URI);
             }
             jsonMap.put(normalizedProperty, results);
         }
@@ -1322,9 +1321,9 @@ public class Harvester implements Runnable {
                 //If we have to generate label sort
                 if (generateSortLabel) {
                     if (node.isLiteral()) {
-                        String sortLabel = RiverUtils.getLabelCoalesce(property, currentValue);
+                        String sortLabel = RiverUtils.constructLabelSort(property, currentValue);
                         if(!sortLabel.isEmpty()) {
-                            jsonMap.put(Settings.SORT_LABEL_NAME, sortLabel);
+                            jsonMap.put(Defaults.SORT_LABEL_NAME, sortLabel);
                         }
                     }
                 }
@@ -1352,7 +1351,7 @@ public class Harvester implements Runnable {
                             //Replace possible illegal characters with empty space.
                             //These characters have special meaning in Elasticsearch,
                             //so we remove them in a suggestion list.
-                            suggestValue = RiverUtils.removeSpecialChars(suggestValue);
+                            suggestValue = RiverUtils.removeSpecialCharsForAutoSuggest(suggestValue);
                         }
                         //Add value to the list
                         suggestInputs.add(suggestValue.toLowerCase());
@@ -1424,8 +1423,8 @@ public class Harvester implements Runnable {
         //Put suggest filed in every document
         if (suggestInputs.size() > 0) {
             Map<String, Object> suggestMap = new HashMap<>();
-            suggestMap.put(Settings.SUGGESTION_INPUT_FIELD, suggestInputs);
-            jsonMap.put(Settings.SUGGESTION_FIELD, suggestMap);
+            suggestMap.put(Defaults.SUGGESTION_INPUT_FIELD, suggestInputs);
+            jsonMap.put(Defaults.SUGGESTION_FIELD, suggestMap);
         }
 
         return jsonMap;

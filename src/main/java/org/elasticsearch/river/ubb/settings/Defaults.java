@@ -8,10 +8,9 @@ import java.util.List;
  * @author Hemed Al Ruwehy
  * Modified by Hemed Ali, 09-03-2015
  */
-public final class Settings {
+public final class Defaults {
 
-    public final static String RIVER_SETTINGS_KEY = "eeaRDF";
-    public final static String UBB_SETTINGS_KEY = "ubbRiver";
+    public final static String EEA_SETTINGS_KEY = "eeaRDF";
     public final static String DEFAULT_INDEX_NAME = "rdfdata";
     public final static String DEFAULT_TYPE_NAME = "resource";
     public final static String SUGGESTION_FIELD = "suggest";
@@ -60,7 +59,6 @@ public final class Settings {
             "http://xmlns.com/foaf/0.1/name",
             "http://www.w3.org/2000/01/rdf-schema#label"
     };
-
 
 
 }

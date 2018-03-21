@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.elasticsearch.plugin.river.ubb</groupId>
     <artifactId>ubb-rdf-river-plugin</artifactId>
-    <version>1.7.6.1</version>
+    <version>1.7.6</version>
 
     <packaging>jar</packaging>
 

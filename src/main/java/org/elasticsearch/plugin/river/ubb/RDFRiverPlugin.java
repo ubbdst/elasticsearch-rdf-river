@@ -4,7 +4,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.river.RiversModule;
 import org.elasticsearch.river.ubb.RDFRiverModule;
-import org.elasticsearch.river.ubb.settings.Settings;
+import org.elasticsearch.river.ubb.settings.Defaults;
 
 /**
  * @author iulia, EEA
@@ -17,7 +17,7 @@ public class RDFRiverPlugin extends AbstractPlugin {
 
     @Override
     public String name() {
-        return Settings.RIVER_PLUGIN_NAME;
+        return Defaults.RIVER_PLUGIN_NAME;
     }
 
     @Override
@@ -26,7 +26,7 @@ public class RDFRiverPlugin extends AbstractPlugin {
     }
 
     public void onModule(RiversModule module) {
-        module.registerRiver(Settings.RIVER_SETTINGS_KEY, RDFRiverModule.class);
+        module.registerRiver(Defaults.EEA_SETTINGS_KEY, RDFRiverModule.class);
     }
 }
 

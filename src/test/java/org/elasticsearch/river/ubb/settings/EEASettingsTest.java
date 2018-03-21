@@ -19,12 +19,15 @@ public class EEASettingsTest {
         assertEquals("", RiverUtils.removeSpecialChars("      "));
         assertEquals("s", RiverUtils.removeSpecialChars("{s}"));
         assertEquals("anakonda", RiverUtils.removeSpecialChars("[ \"anakonda]"));
-        System.out.println(RiverUtils.removeSpecialChars("hamad, ali rashid's masauni"));
+        assertEquals("anakonda", RiverUtils.removeSpecialChars("   [ \"anakonda]"));
+        assertEquals("Norge fremstillet s i tegninger", RiverUtils.removeSpecialChars("'Norge fremstillet's i tegninger'"));
+
     }
 
     @Test
     public void getSortLabel(){
-        assertEquals("mama" , RiverUtils.getLabelCoalesce("http://purl.org/dc/terms/title", "mama"));
-        assertEquals("" , RiverUtils.getLabelCoalesce("http://purl.org/dc/terms/title", ""));
+        assertEquals("mama" , RiverUtils.constructLabelSort("http://purl.org/dc/terms/title", "mama"));
+        assertEquals("" , RiverUtils.constructLabelSort("http://purl.org/dc/terms/title", ""));
+
     }
 }
