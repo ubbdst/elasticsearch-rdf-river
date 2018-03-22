@@ -1292,14 +1292,15 @@ public class Harvester implements Runnable {
         if (addUriForResource) {
             results.add(rs.toString());
             String normalizedProperty = Defaults.DEFAULT_RESOURCE_URI;
-            //If a property is defined in the normProp list, then use normalized(shorten) property.
+
+            // If a property is defined in the normProp list, then use
+            // the normalized (shorten) property.
             if (willNormalizeProp && normalizeProp.containsKey(Defaults.DEFAULT_RESOURCE_URI)) {
                 normalizedProperty = normalizeProp.get(Defaults.DEFAULT_RESOURCE_URI);
             }
             jsonMap.put(normalizedProperty, results);
         }
         Set<String> rdfLanguages = new HashSet<>();
-
         for (Property prop : properties) {
             NodeIterator niter = model.listObjectsOfProperty(rs, prop);
             String property = prop.toString();
@@ -1313,7 +1314,7 @@ public class Harvester implements Runnable {
                 RDFNode node = niter.next();
                 currentValue = getStringForResult(rs, node);
 
-                //If a key contains empty value, skip and do not index
+                //If a literal contains empty value, skip and do not index
                 if (currentValue.isEmpty()) {
                     continue;
                 }
@@ -1322,7 +1323,7 @@ public class Harvester implements Runnable {
                 if (generateSortLabel) {
                     if (node.isLiteral()) {
                         String sortLabel = RiverUtils.constructLabelSort(property, currentValue);
-                        if(!sortLabel.isEmpty()) {
+                        if(Strings.hasText(sortLabel)) {
                             jsonMap.put(Defaults.SORT_LABEL_NAME, sortLabel);
                         }
                     }
@@ -1337,24 +1338,27 @@ public class Harvester implements Runnable {
                     }
                 }
                 //Add values to suggest field for auto suggestion.
-                if (isAutoSuggestionEnabled && Strings.hasText(currentValue)
-                    /*&& suggestPropList.contains(property)*/) {
-
+                if (isAutoSuggestionEnabled) {
                     //Filter the value, such that it should not contain weird characters
-                    if (!currentValue.startsWith("http") && currentValue.length() <= maxSuggestInputLength
+                    if (!currentValue.startsWith("http")
+                            && currentValue.length() <= maxSuggestInputLength
                             && !currentValue.equalsIgnoreCase("true")
-                            && !currentValue.equalsIgnoreCase("false")
-                            && Character.isLetter(currentValue.charAt(0))) {
+                            && !currentValue.equalsIgnoreCase("false")) {
 
                         suggestValue = currentValue;
+
                         if (removeIllegalCharsForSuggestion) {
                             //Replace possible illegal characters with empty space.
                             //These characters have special meaning in Elasticsearch,
                             //so we remove them in a suggestion list.
                             suggestValue = RiverUtils.removeSpecialCharsForAutoSuggest(suggestValue);
                         }
+
                         //Add value to the list
-                        suggestInputs.add(suggestValue.toLowerCase());
+                        if(Strings.hasText(suggestValue)
+                                && Character.isLetter(suggestValue.charAt(0))) {
+                            suggestInputs.add(suggestValue.toLowerCase());
+                        }
                     }
                 }
 
@@ -1511,6 +1515,7 @@ public class Harvester implements Runnable {
         String actionPerformed = updateDocuments ? "updated" : "indexed";
         logger.info("\n-------------------------------------------"
                 + "\n\tTotal documents " + actionPerformed + ": " + bulkLength
+                + "\n\tNumber of triples: " + model.size()
                 + "\n\tRiver: " + riverName
                 + "\n\tIndex: " + indexName
                 + "\n\tType: " + typeName
