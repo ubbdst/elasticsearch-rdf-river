@@ -8,8 +8,8 @@ public class EEASettingsTest {
 
     @Test
     public void getTimeFormatAsString() {
-        assertEquals("1.0 seconds", RiverUtils.getTimeFormatAsString(1000));
-        assertEquals("1.0 minutes", RiverUtils.getTimeFormatAsString(60*1000));
+        assertEquals("1.0 seconds", RiverUtils.getTimeString(1000));
+        assertEquals("1.0 minutes", RiverUtils.getTimeString(60*1000));
     }
 
 

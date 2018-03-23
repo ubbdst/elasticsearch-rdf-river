@@ -30,7 +30,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.elasticsearch.river.ubb.settings.RiverUtils.getTimeFormatAsString;
+import static org.elasticsearch.river.ubb.settings.RiverUtils.getTimeString;
 
 /**
  * @author European Environment Agency (EEA) <br>
@@ -87,6 +87,8 @@ public class Harvester implements Runnable {
     private String queryPath;
     private boolean deleteRiverMappingAfterCreation = false;
     private boolean generateSortLabel = false;
+    private long timeStarted = 0;
+
 
     /**
      * Sets the {@link Harvester}'s {@link #rdfUrls} parameter
@@ -111,6 +113,22 @@ public class Harvester implements Runnable {
     public Harvester rdfEndpoint(String endpoint) {
         rdfEndpoint = endpoint;
         return this;
+    }
+
+
+    /**
+     * Sets time started parameter
+     */
+    public Harvester timeStarted(long timeInMillis) {
+        timeStarted = timeInMillis;
+        return this;
+    }
+
+    /**
+     * Sets time started parameter
+     */
+    public long getTimeStarted() {
+         return  timeStarted;
     }
 
     /**
@@ -911,11 +929,11 @@ public class Harvester implements Runnable {
      * @return
      */
     public boolean runIndexAll() {
-                /*logger.info(
-                        "Starting RDF harvester: endpoint [{}], TDB [{}] queries [{}],"
-                        + "URLs [{}], index name [{}], typeName [{}]",
-                        rdfEndpoint, tdbLocation, rdfQueries, rdfUrls, indexName, typeName);
-                 */
+        /*logger.info(
+                "Starting RDF harvester: endpoint [{}], TDB [{}] queries [{}],"
+                + "URLs [{}], index name [{}], typeName [{}]",
+                rdfEndpoint, tdbLocation, rdfQueries, rdfUrls, indexName, typeName);
+         */
         while (true) {
             if (this.closed) {
                 logger.info("Ended the harvest for river [{}] on index [{}] and type [{}]",
@@ -923,21 +941,21 @@ public class Harvester implements Runnable {
                 return true;
             }
 
-            /**
+            /*
              * Harvest from a SPARQL endpoint
              */
             if (!rdfEndpoint.trim().isEmpty()) {
                 harvestFromEndpoint();
             }
 
-            /**
+            /*
              * Harvest from TDB
              */
             if (!tdbLocation.trim().isEmpty()) {
                 harvestFromTDB();
             }
 
-            /**
+            /*
              * Harvest from RDF dumps
              */
             harvestFromDumps();
@@ -1247,7 +1265,7 @@ public class Harvester implements Runnable {
                 + "\n\tDocuments indexed (chunks):" + client.prepareCount(indexName).setTypes(typeName).get().getCount()
                 + "\n\tIndex: " + indexName
                 + "\n\tType: " + typeName
-                + "\n\tTime for harvesting and indexing: " + getTimeFormatAsString(System.currentTimeMillis() - startTime)
+                + "\n\tTime for harvesting and indexing: " + getTimeString(System.currentTimeMillis() - startTime)
                 + "\n-------------------------------------------");
 
     }
@@ -1511,15 +1529,18 @@ public class Harvester implements Runnable {
 
         }
 
+        long finishTime = System.currentTimeMillis();
+
         //Show time taken to perform the action
         String actionPerformed = updateDocuments ? "updated" : "indexed";
         logger.info("\n-------------------------------------------"
                 + "\n\tTotal documents " + actionPerformed + ": " + bulkLength
-                + "\n\tNumber of triples: " + model.size()
+                + "\n\tTriples harvested: " + model.size()
                 + "\n\tRiver: " + riverName
                 + "\n\tIndex: " + indexName
                 + "\n\tType: " + typeName
-                + "\n\tTook: " + getTimeFormatAsString(System.currentTimeMillis() - startTime)
+                + "\n\tTime to index: " + getTimeString(finishTime - startTime)
+                + "\n\tTotal time: " +  getTimeString(finishTime - getTimeStarted())
                 + "\n-------------------------------------------");
     }
 

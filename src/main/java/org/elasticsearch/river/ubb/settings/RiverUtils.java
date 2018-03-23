@@ -83,19 +83,19 @@ public class RiverUtils {
     /**
      * Gets time representation as string
      */
-    public static String getTimeFormatAsString(long timeInMilliSeconds) {
+    public static String getTimeString(long timeInMilliSeconds) {
         //Time in seconds
-        double timeInSeconds = timeInMilliSeconds / 1000.00;
+        double timeInSeconds = timeInMilliSeconds/1000.0;
         //In minutes
         if (timeInSeconds >= 60 && timeInSeconds < 60 * 60) {
-            return timeInSeconds / 60 + " minutes";
+            return timeInSeconds/60 + " min";
         }
         //In hours
         if (timeInSeconds >= 60 * 60 && timeInSeconds < 24 * 3600) {
-            return timeInSeconds / 3600 + " hours";
+            return timeInSeconds/3600 + " hr";
         }
         //default unit
-        return timeInSeconds + " seconds";
+        return timeInSeconds + " s";
     }
 
 

@@ -206,9 +206,10 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 
     @Override
     public void start() {
-        harvesterThread = EsExecutors
-                .daemonThreadFactory(settings.globalSettings(),
-                        "ubbRiver(" + riverName().name() + ")")
+        harvester.log("Starting UBB RDF river [" + riverName.name() + "]");
+        harvester.timeStarted(System.currentTimeMillis());
+        harvesterThread = EsExecutors.daemonThreadFactory(
+                settings.globalSettings(), "ubbRiver[" + riverName().name() + "]")
                 .newThread(harvester);
         harvesterThread.start();
     }
