@@ -93,7 +93,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
     }
 
     /**
-     * Builds harvester
+     * Builds harvester with the provided settings
      */
     private void buildHarvester(RiverSettings settings) {
         Map<String, Object> rdfSettings = extractSettings(settings);
@@ -206,7 +206,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 
     @Override
     public void start() {
-        harvester.log("Starting UBB RDF river [" + riverName.name() + "]");
+        harvester.log("Starting river [" + riverName.name() + "]");
         harvester.timeStarted(System.currentTimeMillis());
         harvesterThread = EsExecutors.daemonThreadFactory(
                 settings.globalSettings(), "ubbRiver[" + riverName().name() + "]")
@@ -216,7 +216,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
 
     @Override
     public void close() {
-        harvester.log("Closing UBB RDF river [" + riverName.name() + "]");
+        harvester.log("Closing river [" + riverName.name() + "]");
         harvester.setClose(true);
         if (harvesterThread != null && !harvesterThread.isInterrupted()) {
             harvesterThread.interrupt();
