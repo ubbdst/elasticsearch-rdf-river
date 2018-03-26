@@ -1608,7 +1608,7 @@ public class Harvester implements Runnable {
     private Map<String, Object> convertSingleValueListToString(Map<String, Object> map) {
         for (Map.Entry<String, Object> entry : map.entrySet()) {
             if (entry.getValue() instanceof java.util.ArrayList) {
-                List<String> value = (ArrayList<String>) entry.getValue();
+                ArrayList value = (ArrayList)entry.getValue();
                 if (value.size() == 1) {
                     map.put(entry.getKey(), value.get(0));
                 }
