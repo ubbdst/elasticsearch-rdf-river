@@ -1127,11 +1127,6 @@ public class Harvester implements Runnable {
      * and/or path specified in {@link #queryPath}.
      */
     private void harvestFromTDB() {
-        //Create or connect to the TDB-backend
-        Dataset dataset = TDBFactory.createDataset(tdbLocation);
-
-        //Store this TDB dataset such that we can use it afterwards
-        this.setTDBDataset(dataset);
 
         //Harvesting from a list of RDF Queries
         if (!rdfQueries.isEmpty()) {
@@ -1149,6 +1144,12 @@ public class Harvester implements Runnable {
                     continue;
                 }
                 if (queryFromList != null) {
+                    //Create or connect to the TDB-backend
+                    Dataset dataset = TDBFactory.createDataset(tdbLocation);
+                    // Store this TDB dataset such that we can use it afterwards
+                    // e.g for getting labels
+                    this.setTDBDataset(dataset);
+                    //Do harvesting
                     harvest(dataset, queryFromList);
                 }
 
@@ -1167,6 +1168,11 @@ public class Harvester implements Runnable {
                 logger.error("Could not parse [{}]. Please provide a relevant query. {}", queryPath, qpe);
             }
             if (queryFromPath != null) {
+                //Create or connect to the TDB-backend
+                Dataset dataset = TDBFactory.createDataset(tdbLocation);
+                //Store the dataset such that we can use it afterwards
+                this.setTDBDataset(dataset);
+                //Do harvesting
                 harvest(dataset, queryFromPath);
             }
         }
@@ -1195,62 +1201,6 @@ public class Harvester implements Runnable {
         }
     }
 
-
-    /**
-     * Harvest data using a given TDB dataset in chunks. Note that this is an experimental method
-     * and maybe removed in the future
-     *
-     * @param query   a given query
-     * @param dataset a given dataset to query against
-     */
-    private void harvestInChunks(Dataset dataset, Query query) {
-        long startTime = System.currentTimeMillis();
-        boolean keepQuerying = true;
-        long limit = Defaults.DEFAULT_QUERY_LIMIT; //TODO: Get this from user
-        long offset = 0;
-        Model defaultModel = ModelFactory.createDefaultModel();
-
-        //Begin READ transaction
-        dataset.begin(ReadWrite.READ);
-        do {
-            query.setLimit(limit);
-            query.setOffset(offset);
-
-            try (QueryExecution queryExecution = QueryExecutionFactory.create(query, dataset)) {
-                Model model = getModel(queryExecution);
-                // Decide whether to keep querying or not
-                if (Objects.isNull(model) || model.isEmpty()) {
-                    keepQuerying = false;
-                }
-                // Send model to Elasticsearch
-                if (model != null) {
-                    defaultModel.add(model);
-                    //After indexing, free up resources
-                    //model.close();
-                    //queryExecution.close();
-                }
-                //Increment offset
-                offset = offset + limit;
-            } catch (Exception e) {
-                logger.error("Exception during harvesting using TDB [{}] ", e.getLocalizedMessage());
-                e.printStackTrace();
-            }
-        }
-        while (keepQuerying);
-        addModelToElasticsearch(defaultModel, client.prepareBulk());
-        //End transaction
-        defaultModel.close();
-        dataset.end();
-
-
-        logger.info("\n-------------------------------------------"
-                + "\n\tDocuments indexed (chunks):" + client.prepareCount(indexName).setTypes(typeName).get().getCount()
-                + "\n\tIndex: " + indexName
-                + "\n\tType: " + typeName
-                + "\n\tTime for harvesting and indexing: " + getTimeString(System.currentTimeMillis() - startTime)
-                + "\n-------------------------------------------");
-
-    }
 
     /**
      * Harvests all the triplets from each URI in the @rdfUrls list
@@ -1608,7 +1558,7 @@ public class Harvester implements Runnable {
     private Map<String, Object> convertSingleValueListToString(Map<String, Object> map) {
         for (Map.Entry<String, Object> entry : map.entrySet()) {
             if (entry.getValue() instanceof java.util.ArrayList) {
-                ArrayList value = (ArrayList)entry.getValue();
+                ArrayList value = (ArrayList) entry.getValue();
                 if (value.size() == 1) {
                     map.put(entry.getKey(), value.get(0));
                 }
@@ -1672,8 +1622,7 @@ public class Harvester implements Runnable {
                     // threw BindException - Address already in use.
                     if (getTDBDataset() != null) {
                         result = getLabelForUriFromTDB(result, getTDBDataset());
-                    }
-                    else {//Fall back
+                    } else {//Fall back
                         result = getLabelForUriFromEndpoint(result);
                     }
                 }
