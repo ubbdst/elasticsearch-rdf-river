@@ -1201,7 +1201,6 @@ public class Harvester implements Runnable {
         }
     }
 
-
     /**
      * Harvests all the triplets from each URI in the @rdfUrls list
      */
@@ -1211,7 +1210,6 @@ public class Harvester implements Runnable {
                 continue;
             }
             logger.info("Harvesting url [{}]", url);
-
             Model model = ModelFactory.createDefaultModel();
             try {
                 RDFDataMgr.read(model, url.trim(), RDFLanguages.RDFXML);
@@ -1620,8 +1618,8 @@ public class Harvester implements Runnable {
                     // from SPARQL endpoint because it was error-prone due to
                     // HTTP Exceptions - too many requests in less than a second
                     // threw BindException - Address already in use.
-                    if (getTDBDataset() != null) {
-                        result = getLabelForUriFromTDB(result, getTDBDataset());
+                    if (tdbDataset != null) {
+                        result = getLabelForUriFromTDB(result, tdbDataset);
                     } else {//Fall back
                         result = getLabelForUriFromEndpoint(result);
                     }
