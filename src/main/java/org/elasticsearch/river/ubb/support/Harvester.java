@@ -1144,13 +1144,8 @@ public class Harvester implements Runnable {
                     continue;
                 }
                 if (queryFromList != null) {
-                    //Create or connect to the TDB-backend
-                    Dataset dataset = TDBFactory.createDataset(tdbLocation);
-                    // Store this TDB dataset such that we can use it afterwards
-                    // e.g for getting labels
-                    this.setTDBDataset(dataset);
                     //Do harvesting
-                    harvest(dataset, queryFromList);
+                    harvest(createOrConnect(tdbLocation), queryFromList);
                 }
 
             }
@@ -1159,8 +1154,8 @@ public class Harvester implements Runnable {
         //Harvesting from file path
         if (Strings.hasText(queryPath)) {
             logger.info("Harvesting from TDB [{}] using query path [{}] for river [{}] " +
-                            "on index [{}] and type [{}]",
-                    tdbLocation, queryPath, riverName, indexName, typeName);
+                             "on index [{}] and type [{}]", tdbLocation, queryPath,
+                    riverName, indexName, typeName);
             Query queryFromPath = null;
             try {
                 queryFromPath = QueryFactory.read(queryPath);
@@ -1168,15 +1163,36 @@ public class Harvester implements Runnable {
                 logger.error("Could not parse [{}]. Please provide a relevant query. {}", queryPath, qpe);
             }
             if (queryFromPath != null) {
-                //Create or connect to the TDB-backend
-                Dataset dataset = TDBFactory.createDataset(tdbLocation);
-                //Store the dataset such that we can use it afterwards
-                this.setTDBDataset(dataset);
                 //Do harvesting
-                harvest(dataset, queryFromPath);
+                harvest(createOrConnect(tdbLocation), queryFromPath);
             }
         }
 
+    }
+
+
+    /**
+     * Creates or connects to the TDB-backend
+     *
+     * @param  path location to a TDB dataset
+     * @return dataset or null if cannot create or connect
+     */
+    private Dataset createOrConnect(String path) {
+        Dataset dataset = null;
+        try {
+            //Create or connect to the TDB-backend
+            dataset = TDBFactory.createDataset(path);
+        }
+        catch (Exception e) {
+            logger.error("Cannot create or connect to dataset for path: [{}]", path);
+            throw e;
+        }
+        finally {
+            // Store this TDB dataset such that we can use it afterwards
+            // e.g for getting labels
+            setTDBDataset(dataset);
+        }
+        return dataset;
     }
 
     /**
@@ -1186,6 +1202,7 @@ public class Harvester implements Runnable {
      * @param dataset a given dataset to query against
      */
     private void harvest(Dataset dataset, Query query) {
+        Objects.requireNonNull(dataset, "Dataset cannot be null");
         //Begin READ transaction
         dataset.begin(ReadWrite.READ);
         try (QueryExecution qexec = QueryExecutionFactory.create(query, dataset)) {
@@ -1197,7 +1214,9 @@ public class Harvester implements Runnable {
             e.printStackTrace();
 
         } finally {
+            //Release resources
             dataset.end();
+            dataset.close();
         }
     }
 
