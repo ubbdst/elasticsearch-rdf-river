@@ -1324,7 +1324,7 @@ public class Harvester implements Runnable {
                         //Add value to the list
                         if (Strings.hasText(suggestValue)
                                 && Character.isLetter(suggestValue.charAt(0))) {
-                            suggestInputs.add(suggestValue.toLowerCase());
+                            suggestInputs.add(suggestValue.toLowerCase(Locale.ROOT));
                         }
                     }
                 }
@@ -1414,9 +1414,9 @@ public class Harvester implements Runnable {
         logger.info("Indexing into Elasticsearch for river [{}] on index [{}] and type [{}]",
                 riverName, indexName, typeName);
 
-        //Check for empty model
+        //Abort if model is empty
         if (Objects.isNull(model) || model.isEmpty()) {
-            logger.warn("Cannot index empty model into [{}/{}]. Aborting ...", indexName, typeName);
+            logger.warn("Encountered empty model for river [{}]. Aborting ...", riverName);
             return;
         }
         long startTime = System.currentTimeMillis();
@@ -1640,7 +1640,9 @@ public class Harvester implements Runnable {
                     if (tdbDataset != null) {
                         result = getLabelForUriFromTDB(result, tdbDataset);
                     } else {//Fall back
-                        result = getLabelForUriFromEndpoint(result);
+                        if(!rdfEndpoint.isEmpty()) {
+                            result = getLabelForUriFromEndpoint(result);
+                        }
                     }
                 }
                 quote = true;
@@ -1650,7 +1652,6 @@ public class Harvester implements Runnable {
                         node.toString(), resource.toString(), ex.getLocalizedMessage());
             }
         }
-
         //if(quote) { result = "\"" + result + "\""; }
         return result;
     }
