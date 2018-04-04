@@ -10,6 +10,7 @@ public class EEASettingsTest {
     public void getTimeFormatAsString() {
         assertEquals("1.0 seconds", RiverUtils.getTimeString(1000));
         assertEquals("1.0 minutes", RiverUtils.getTimeString(60*1000));
+        assertEquals("3.33 seconds", RiverUtils.getTimeString(3333));
     }
 
 

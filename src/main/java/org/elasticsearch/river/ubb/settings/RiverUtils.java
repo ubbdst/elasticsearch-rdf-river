@@ -1,5 +1,6 @@
 package org.elasticsearch.river.ubb.settings;
 
+import java.text.DecimalFormat;
 import java.util.regex.Pattern;
 
 public class RiverUtils {
@@ -86,16 +87,18 @@ public class RiverUtils {
     public static String getTimeString(long timeInMilliSeconds) {
         //Time in seconds
         double timeInSeconds = timeInMilliSeconds/1000.0;
+        //Format to 2 decimal places
+        DecimalFormat df = new DecimalFormat(".##");
         //In minutes
         if (timeInSeconds >= 60 && timeInSeconds < 60 * 60) {
-            return timeInSeconds/60 + " min";
+            return df.format(timeInSeconds/60 )+ " minutes";
         }
         //In hours
         if (timeInSeconds >= 60 * 60 && timeInSeconds < 24 * 3600) {
-            return timeInSeconds/3600 + " hr";
+            return df.format(timeInSeconds/3600) + " hours";
         }
         //default unit
-        return timeInSeconds + " s";
+        return df.format(timeInSeconds) + " seconds";
     }
 
 
