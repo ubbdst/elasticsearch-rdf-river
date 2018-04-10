@@ -5,11 +5,13 @@ release
 *.iml
 /target/
 /src/test/java/org/elasticsearch/plugin/
-/src/main/java/org/elasticsearch/river/eea_rdf/settings/EEASettings.class
+/org/elasticsearch/river/ubb/settings/EEASettings.class
 pom.xml.versionsBackup
 pom.xml.releaseBackup
 .classpath
 .project
 .DS_Store
+.settings
+/bin
 
 

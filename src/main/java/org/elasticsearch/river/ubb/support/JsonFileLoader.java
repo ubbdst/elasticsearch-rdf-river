@@ -1,4 +1,4 @@
-package org.elasticsearch.river.eea_rdf.support;
+package org.elasticsearch.river.ubb.support;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -6,7 +6,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.loader.JsonSettingsLoader;
-import org.elasticsearch.river.eea_rdf.utils.FileManager;
+import org.elasticsearch.river.ubb.utils.FileManager;
 
 import java.io.IOException;
 import java.util.Collections;

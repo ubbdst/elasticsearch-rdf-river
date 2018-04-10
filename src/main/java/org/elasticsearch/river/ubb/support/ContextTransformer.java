@@ -1,4 +1,4 @@
-package org.elasticsearch.river.eea_rdf.support;
+package org.elasticsearch.river.ubb.support;
 
 import com.google.gson.JsonElement;
 

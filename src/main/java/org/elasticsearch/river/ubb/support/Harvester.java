@@ -1,4 +1,4 @@
-package org.elasticsearch.river.eea_rdf.support;
+package org.elasticsearch.river.ubb.support;
 
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
@@ -22,17 +22,20 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.river.eea_rdf.settings.EEASettings;
+import org.elasticsearch.river.ubb.settings.Defaults;
+import org.elasticsearch.river.ubb.settings.RiverUtils;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.elasticsearch.river.eea_rdf.settings.EEASettings.getTimeFormatAsString;
+import static org.elasticsearch.river.ubb.settings.RiverUtils.getTimeString;
 
 /**
  * @author European Environment Agency (EEA) <br>
+ * @author Hemed Al Ruwehy
+ * <p>
  * Customized to accommodate requests from the University of Bergen Library.<br>
  * by Hemed Ali, 09-03-2015
  */
@@ -83,6 +86,9 @@ public class Harvester implements Runnable {
     private Dataset tdbDataset = null;
     private String queryPath;
     private boolean deleteRiverMappingAfterCreation = false;
+    private boolean generateSortLabel = false;
+    private long timeStarted = 0;
+
 
     /**
      * Sets the {@link Harvester}'s {@link #rdfUrls} parameter
@@ -107,6 +113,22 @@ public class Harvester implements Runnable {
     public Harvester rdfEndpoint(String endpoint) {
         rdfEndpoint = endpoint;
         return this;
+    }
+
+
+    /**
+     * Sets time started parameter
+     */
+    public Harvester timeStarted(long timeInMillis) {
+        timeStarted = timeInMillis;
+        return this;
+    }
+
+    /**
+     * Sets time started parameter
+     */
+    public long getTimeStarted() {
+        return timeStarted;
     }
 
     /**
@@ -260,6 +282,16 @@ public class Harvester implements Runnable {
     public Harvester deleteRiverAfterCreation(boolean flag) {
         if (flag) {
             deleteRiverMappingAfterCreation = true;
+        }
+        return this;
+    }
+
+    /**
+     * Decides whether to generate sort label
+     */
+    public Harvester generateSortLabel(boolean flag) {
+        if (flag) {
+            generateSortLabel = true;
         }
         return this;
     }
@@ -522,7 +554,8 @@ public class Harvester implements Runnable {
 
     public Harvester maxSuggestInputLength(int length) {
         if (length < 0) {
-            throw new IllegalArgumentException("Expected positive number for maxSuggestInputLength but found [ " + length + "]");
+            throw new IllegalArgumentException("Expected positive number for " +
+                    "maxSuggestInputLength but found [ " + length + "]");
         }
         this.maxSuggestInputLength = length;
         return this;
@@ -836,7 +869,7 @@ public class Harvester implements Runnable {
         for (String uri : rdfUrls) {
             currentBulk.add(uri);
 
-            if (currentBulk.size() == EEASettings.DEFAULT_BULK_REQ) {
+            if (currentBulk.size() == Defaults.DEFAULT_BULK_REQ) {
                 bulks.add(currentBulk);
                 currentBulk = new ArrayList<String>();
             }
@@ -896,11 +929,11 @@ public class Harvester implements Runnable {
      * @return
      */
     public boolean runIndexAll() {
-                /*logger.info(
-                        "Starting RDF harvester: endpoint [{}], TDB [{}] queries [{}],"
-                        + "URLs [{}], index name [{}], typeName [{}]",
-                        rdfEndpoint, tdbLocation, rdfQueries, rdfUrls, indexName, typeName);
-                 */
+        /*logger.info(
+                "Starting RDF harvester: endpoint [{}], TDB [{}] queries [{}],"
+                + "URLs [{}], index name [{}], typeName [{}]",
+                rdfEndpoint, tdbLocation, rdfQueries, rdfUrls, indexName, typeName);
+         */
         while (true) {
             if (this.closed) {
                 logger.info("Ended the harvest for river [{}] on index [{}] and type [{}]",
@@ -908,21 +941,21 @@ public class Harvester implements Runnable {
                 return true;
             }
 
-            /**
+            /*
              * Harvest from a SPARQL endpoint
              */
             if (!rdfEndpoint.trim().isEmpty()) {
                 harvestFromEndpoint();
             }
 
-            /**
+            /*
              * Harvest from TDB
              */
             if (!tdbLocation.trim().isEmpty()) {
                 harvestFromTDB();
             }
 
-            /**
+            /*
              * Harvest from RDF dumps
              */
             harvestFromDumps();
@@ -1024,9 +1057,7 @@ public class Harvester implements Runnable {
             retry = false;
             try {
                 Model model = getModel(qexec);
-                if (model != null) {
-                    addModelToElasticsearch(model, client.prepareBulk());
-                }
+                addModelToElasticsearch(model, client.prepareBulk());
             } catch (QueryExceptionHTTP httpe) {
                 if (httpe.getResponseCode() >= 500) {
                     retry = true;
@@ -1048,16 +1079,12 @@ public class Harvester implements Runnable {
      * {@link #rdfQueries} and harvests the results of the query.
      */
     private void harvestFromEndpoint() {
-        Query query;
-        QueryExecution qexec;
-
         //Harvesting using a given SPARQL query path
         if (Strings.hasText(queryPath)) {
-            Query queryFromPath = null;
-            QueryExecution queryExecution;
-            logger.info("Harvesting from endpoint [{}] using query path [{}] for river [{}] on index [{}] and type [{}]",
-                    rdfEndpoint, queryPath, riverName, indexName, typeName);
+            logger.info("Harvesting from endpoint [{}] using query path [{}] for river [{}] on index " +
+                    "[{}] and type [{}]", rdfEndpoint, queryPath, riverName, indexName, typeName);
 
+            Query queryFromPath = null;
             try {
                 queryFromPath = QueryFactory.read(queryPath);
             } catch (QueryParseException qpe) {
@@ -1065,94 +1092,107 @@ public class Harvester implements Runnable {
             }
 
             if (queryFromPath != null) {
-                queryExecution = QueryExecutionFactory.sparqlService(rdfEndpoint, queryFromPath);
-                try {
-                    harvest(queryExecution);
+                try (QueryExecution qE = QueryExecutionFactory.sparqlService(rdfEndpoint, queryFromPath)) {
+                    harvest(qE);
                 } catch (IOException e) {
                     logger.error("Error while harvesting from {}", queryPath, e.getLocalizedMessage());
-                } finally {
-                    queryExecution.close();
                 }
             }
         }
 
         //Harvesting using list of RDF queries
-        for (String rdfQuery : rdfQueries) {
-            logger.info("Harvesting from endpoint [{}] for river [{}] on index [{}] and type [{}] using provided queries",
-                    rdfEndpoint, riverName, indexName, typeName);
-
-            try {
-                query = QueryFactory.create(rdfQuery);
-            } catch (QueryParseException qpe) {
-                logger.error("Could not parse [{}]. Please provide a relevant query. {}", rdfQuery, qpe);
-                continue;
-            }
-            qexec = QueryExecutionFactory.sparqlService(rdfEndpoint, query);
-            try {
-                harvest(qexec);
-            } catch (Exception e) {
-                logger.error("Exception [{}] occurred while harvesting", e.getLocalizedMessage());
-                e.printStackTrace();
-
-            } finally {
-                qexec.close();
+        if (!rdfQueries.isEmpty()) {
+            Query query;
+            for (String rdfQuery : rdfQueries) {
+                logger.info("Harvesting from endpoint [{}] for river [{}] on index [{}] and type [{}] using provided queries",
+                        rdfEndpoint, riverName, indexName, typeName);
+                try {
+                    query = QueryFactory.create(rdfQuery);
+                } catch (QueryParseException qpe) {
+                    logger.error("Could not parse [{}]. Please provide a relevant query. {}", rdfQuery, qpe);
+                    continue;
+                }
+                try (QueryExecution qexec = QueryExecutionFactory.sparqlService(rdfEndpoint, query);) {
+                    harvest(qexec);
+                } catch (Exception e) {
+                    logger.error("Exception [{}] occurred while harvesting", e.getLocalizedMessage());
+                    e.printStackTrace();
+                }
             }
         }
     }
 
     /**
-     * Harvest from TDB using queries specified from {@link #rdfQueries and/or path specified in {@link #queryPath}.
+     * Harvest from TDB using queries specified from {@link #rdfQueries
+     * and/or path specified in {@link #queryPath}.
      */
     private void harvestFromTDB() {
-        //Define queries
-        Query queryFromList, queryFromPath = null;
 
-        //Define dataset to query
-        Dataset dataset;
+        //Harvesting from a list of RDF Queries
+        if (!rdfQueries.isEmpty()) {
+            Query queryFromList;
+            for (String rdfQuery : rdfQueries) {
+                logger.info("Harvesting from TDB store [{}] for river [{}] on index [{}] and type [{}]",
+                        tdbLocation, riverName, indexName, typeName);
 
-        //Create a data set object
-        dataset = TDBFactory.createDataset(tdbLocation);
+                try {
+                    queryFromList = QueryFactory.create(rdfQuery);
+                } catch (QueryParseException qpe) {
+                    logger.error(
+                            "Could not parse [{}]. Please provide a relevant query. {}",
+                            rdfQuery, qpe);
+                    continue;
+                }
+                if (queryFromList != null) {
+                    //Do harvesting
+                    harvest(createOrConnect(tdbLocation), queryFromList);
+                }
 
-        //Use this data set throughout
-        this.setTDBDataset(dataset);
+            }
+        }
 
-        //Harvesting from a given SPARQL path
+        //Harvesting from file path
         if (Strings.hasText(queryPath)) {
-            logger.info("Harvesting from TDB store [{}] using query path [{}] for river [{}] on index [{}] and type [{}]",
-                    tdbLocation, queryPath, riverName, indexName, typeName);
-
+            logger.info("Harvesting from TDB [{}] using query path [{}] for river [{}] " +
+                             "on index [{}] and type [{}]", tdbLocation, queryPath,
+                    riverName, indexName, typeName);
+            Query queryFromPath = null;
             try {
                 queryFromPath = QueryFactory.read(queryPath);
             } catch (QueryParseException qpe) {
                 logger.error("Could not parse [{}]. Please provide a relevant query. {}", queryPath, qpe);
             }
-
             if (queryFromPath != null) {
-                harvest(dataset, queryFromPath);
+                //Do harvesting
+                harvest(createOrConnect(tdbLocation), queryFromPath);
             }
         }
 
-        //Harvesting from a list of RDF Queries
-        for (String rdfQuery : rdfQueries) {
-            logger.info(
-                    "Harvesting from TDB store [{}] for river [{}] on index [{}] and type [{}]",
-                    tdbLocation, riverName, indexName, typeName);
+    }
 
-            try {
-                queryFromList = QueryFactory.create(rdfQuery);
-            } catch (QueryParseException qpe) {
-                logger.error(
-                        "Could not parse [{}]. Please provide a relevant query. {}",
-                        rdfQuery, qpe);
-                continue;
-            }
 
-            if (queryFromList != null) {
-                harvest(dataset, queryFromList);
-            }
-
+    /**
+     * Creates or connects to the TDB-backend
+     *
+     * @param  path location to a TDB dataset
+     * @return dataset or null if cannot create or connect
+     */
+    private Dataset createOrConnect(String path) {
+        Dataset dataset = null;
+        try {
+            //Create or connect to the TDB-backend
+            dataset = TDBFactory.createDataset(path);
         }
-
+        catch (Exception e) {
+            logger.error("Cannot create or connect to dataset for path: [{}]", path);
+            throw e;
+        }
+        finally {
+            // Store this TDB dataset such that we can use it afterwards
+            // e.g for getting labels
+            setTDBDataset(dataset);
+        }
+        return dataset;
     }
 
     /**
@@ -1162,27 +1202,21 @@ public class Harvester implements Runnable {
      * @param dataset a given dataset to query against
      */
     private void harvest(Dataset dataset, Query query) {
-        QueryExecution qexec;
-
+        Objects.requireNonNull(dataset, "Dataset cannot be null");
         //Begin READ transaction
         dataset.begin(ReadWrite.READ);
-
-        //Execute SPARQL queries
-        qexec = QueryExecutionFactory.create(query, dataset);
-
-        //Do harvesting
-        try {
+        try (QueryExecution qexec = QueryExecutionFactory.create(query, dataset)) {
+            //Harvest and send model to Elasticsearch
             Model model = getModel(qexec);
-            if (model != null) {
-                addModelToElasticsearch(model, client.prepareBulk());
-            }
+            addModelToElasticsearch(model, client.prepareBulk());
         } catch (Exception e) {
             logger.error("Exception occurred while harvesting data using TDB [{}] ", e.getLocalizedMessage());
             e.printStackTrace();
 
         } finally {
-            qexec.close();
+            //Release resources
             dataset.end();
+            dataset.close();
         }
     }
 
@@ -1195,7 +1229,6 @@ public class Harvester implements Runnable {
                 continue;
             }
             logger.info("Harvesting url [{}]", url);
-
             Model model = ModelFactory.createDefaultModel();
             try {
                 RDFDataMgr.read(model, url.trim(), RDFLanguages.RDFXML);
@@ -1225,16 +1258,16 @@ public class Harvester implements Runnable {
 
         if (addUriForResource) {
             results.add(rs.toString());
-            String normalizedProperty = EEASettings.DEFAULT_RESOURCE_URI;
+            String normalizedProperty = Defaults.DEFAULT_RESOURCE_URI;
 
-            //If a property is defined in the normProp list, then use normalized(shorten) property.
-            if (willNormalizeProp && normalizeProp.containsKey(EEASettings.DEFAULT_RESOURCE_URI)) {
-                normalizedProperty = normalizeProp.get(EEASettings.DEFAULT_RESOURCE_URI);
+            // If a property is defined in the normProp list, then use
+            // the normalized (shorten) property.
+            if (willNormalizeProp && normalizeProp.containsKey(Defaults.DEFAULT_RESOURCE_URI)) {
+                normalizedProperty = normalizeProp.get(Defaults.DEFAULT_RESOURCE_URI);
             }
             jsonMap.put(normalizedProperty, results);
         }
         Set<String> rdfLanguages = new HashSet<>();
-
         for (Property prop : properties) {
             NodeIterator niter = model.listObjectsOfProperty(rs, prop);
             String property = prop.toString();
@@ -1248,9 +1281,19 @@ public class Harvester implements Runnable {
                 RDFNode node = niter.next();
                 currentValue = getStringForResult(rs, node);
 
-                //If a key contains empty value, skip and do not index
+                //If a literal contains empty value, skip and do not index
                 if (currentValue.isEmpty()) {
                     continue;
+                }
+
+                //If we have to generate label sort
+                if (generateSortLabel) {
+                    if (node.isLiteral()) {
+                        String sortLabel = RiverUtils.constructLabelSort(property, currentValue);
+                        if (Strings.hasText(sortLabel)) {
+                            jsonMap.put(Defaults.SORT_LABEL_NAME, sortLabel);
+                        }
+                    }
                 }
 
                 if (addLanguage) {
@@ -1262,29 +1305,27 @@ public class Harvester implements Runnable {
                     }
                 }
                 //Add values to suggest field for auto suggestion.
-                if (isAutoSuggestionEnabled && Strings.hasText(currentValue) /*&& suggestPropList.contains(property)*/) {
-
+                if (isAutoSuggestionEnabled) {
                     //Filter the value, such that it should not contain weird characters
-                    if (!currentValue.startsWith("http") && currentValue.length() <= maxSuggestInputLength
-                            && !currentValue.equalsIgnoreCase("true") && !currentValue.equalsIgnoreCase("false")
-                            && Character.isLetter(currentValue.charAt(0))) {
+                    if (!currentValue.startsWith("http")
+                            && currentValue.length() <= maxSuggestInputLength
+                            && !currentValue.equalsIgnoreCase("true")
+                            && !currentValue.equalsIgnoreCase("false")) {
 
                         suggestValue = currentValue;
+
                         if (removeIllegalCharsForSuggestion) {
                             //Replace possible illegal characters with empty space.
                             //These characters have special meaning in Elasticsearch,
                             //so we remove them in a suggestion list.
-                            suggestValue = suggestValue
-                                    //.replace('/', ' ')
-                                    .replace(':', ' ')
-                                    .replace('[', ' ')
-                                    .replace(']', ' ')
-                                    .replace('.', ' ')
-                                    .replace('?', ' ')
-                                    .trim();
+                            suggestValue = RiverUtils.removeSpecialCharsForAutoSuggest(suggestValue);
                         }
+
                         //Add value to the list
-                        suggestInputs.add(suggestValue.toLowerCase());
+                        if (Strings.hasText(suggestValue)
+                                && Character.isLetter(suggestValue.charAt(0))) {
+                            suggestInputs.add(suggestValue.toLowerCase(Locale.ROOT));
+                        }
                     }
                 }
 
@@ -1353,8 +1394,8 @@ public class Harvester implements Runnable {
         //Put suggest filed in every document
         if (suggestInputs.size() > 0) {
             Map<String, Object> suggestMap = new HashMap<>();
-            suggestMap.put(EEASettings.SUGGESTION_INPUT_FIELD, suggestInputs);
-            jsonMap.put(EEASettings.SUGGESTION_FIELD, suggestMap);
+            suggestMap.put(Defaults.SUGGESTION_INPUT_FIELD, suggestInputs);
+            jsonMap.put(Defaults.SUGGESTION_FIELD, suggestMap);
         }
 
         return jsonMap;
@@ -1362,14 +1403,22 @@ public class Harvester implements Runnable {
 
     /**
      * Index or update all the resources in a Jena Model to ES Note: Update
-     * works if the user has specified the flag "updateDocuments" to true in
+     * works if the user has specified the flag <tt>updateDocuments</tt> to true in
      * the river settings. It is set to false by default. By doing this, you
-     * can partial update the documents without full re-indexing.
+     * can partial update documents without full reindexing.
      *
      * @param model       the model to index
      * @param bulkRequest a BulkRequestBuilder
      */
-    private void addModelToElasticsearch(Model model, BulkRequestBuilder bulkRequest) throws IOException {
+    private void addModelToElasticsearch(Model model, BulkRequestBuilder bulkRequest) {
+        logger.info("Indexing into Elasticsearch for river [{}] on index [{}] and type [{}]",
+                riverName, indexName, typeName);
+
+        //Abort if model is empty
+        if (Objects.isNull(model) || model.isEmpty()) {
+            logger.warn("Encountered empty model for river [{}]. Aborting ...", riverName);
+            return;
+        }
         long startTime = System.currentTimeMillis();
         long bulkLength = 0;
         HashSet<Property> properties = new HashSet<>();
@@ -1428,15 +1477,20 @@ public class Harvester implements Runnable {
             }
 
         }
-        //Show time taken to perfom the action
+
+        long finishTime = System.currentTimeMillis();
+
+        //Show time taken to perform the action
         String actionPerformed = updateDocuments ? "updated" : "indexed";
-        logger.info("\n==========================================="
+        logger.info("\n-------------------------------------------"
                 + "\n\tTotal documents " + actionPerformed + ": " + bulkLength
+                + "\n\tTriples: " + model.size()
                 + "\n\tRiver: " + riverName
                 + "\n\tIndex: " + indexName
                 + "\n\tType: " + typeName
-                + "\n\tTime taken: " + getTimeFormatAsString(System.currentTimeMillis() - startTime)
-                + "\n===========================================");
+                + "\n\tTime to index: " + getTimeString(finishTime - startTime)
+                + "\n\tTotal time: " + getTimeString(finishTime - getTimeStarted())
+                + "\n-------------------------------------------");
     }
 
     /**
@@ -1521,7 +1575,7 @@ public class Harvester implements Runnable {
     private Map<String, Object> convertSingleValueListToString(Map<String, Object> map) {
         for (Map.Entry<String, Object> entry : map.entrySet()) {
             if (entry.getValue() instanceof java.util.ArrayList) {
-                List<String> value = (ArrayList<String>) entry.getValue();
+                ArrayList value = (ArrayList) entry.getValue();
                 if (value.size() == 1) {
                     map.put(entry.getKey(), value.get(0));
                 }
@@ -1563,35 +1617,41 @@ public class Harvester implements Runnable {
 
                     result += literalValue;
                 } else {
-                    result = EEASettings.parseForJson(
-                            node.asLiteral().getLexicalForm());
+                    result = RiverUtils.parseForJson(node.asLiteral().getLexicalForm());
                     quote = true;
                 }
             } catch (java.lang.NullPointerException npe) {
-                result = EEASettings.parseForJson(
-                        node.asLiteral().getLexicalForm());
+                result = RiverUtils.parseForJson(node.asLiteral().getLexicalForm());
                 quote = true;
             } catch (Exception e) {
-                logger.warn("Exception when retrieving literal value from a property [{}] of resource [{}]  with details [{}], " +
-                        "this property will not be indexed", node.toString(), resource.toString(), e.getLocalizedMessage());
+                logger.warn("Exception when retrieving literal value from a property [{}]" +
+                                " of resource [{}]  with details [{}]. The property will not be indexed",
+                        node.toString(), resource.toString(), e.getLocalizedMessage());
             }
 
         } else if (node.isResource()) {
             try {
                 result = node.asResource().getURI();
                 if (toDescribeURIs) {
-                    //NOTE: We have excluded possibility of getting labels from SPARQL endpoint because
-                    //it was error-prone due to HTTP Exceptions - too many requests in less than a second
-                    //threw BindException - Address already in use.
-                    result = getLabelForUriFromTDB(result, this.getTDBDataset());
+                    // NOTE: By default, we have excluded possibility of getting labels
+                    // from SPARQL endpoint because it was error-prone due to
+                    // HTTP Exceptions - too many requests in less than a second
+                    // threw BindException - Address already in use.
+                    if (tdbDataset != null) {
+                        result = getLabelForUriFromTDB(result, tdbDataset);
+                    } else {//Fall back
+                        if(!rdfEndpoint.isEmpty()) {
+                            result = getLabelForUriFromEndpoint(result);
+                        }
+                    }
                 }
                 quote = true;
             } catch (Exception ex) {
-                logger.warn("Exception when getting resource value from a property [{}] of resource [{}] with details [{}]",
+                logger.warn("Exception when getting resource value from a property [{}] " +
+                                "of resource [{}] with details [{}]",
                         node.toString(), resource.toString(), ex.getLocalizedMessage());
             }
         }
-
         //if(quote) { result = "\"" + result + "\""; }
         return result;
     }
@@ -1618,26 +1678,22 @@ public class Harvester implements Runnable {
             QueryExecution qexec = QueryExecutionFactory.sparqlService(rdfEndpoint, query);
             try {
                 ResultSet results = qexec.execSelect();
-                if (results.hasNext()) {
-                    QuerySolution sol = results.nextSolution();
-                    String result = EEASettings.parseForJson(
-                            sol.getLiteral("label").getLexicalForm());
-
-                    if (!result.isEmpty()) {
-                        qexec.close();
-                        return result;
-                    }
-
+                String result = getLexicalForm(results);
+                if (!result.isEmpty()) {
+                    qexec.close();
+                    return result;
                 }
             } catch (Exception ex) {
-                logger.warn("Could not get label for uri [{}] from endpoint [{}] with query [{}] ", uri, rdfEndpoint, innerQuery);
+                logger.warn("Could not get label for uri [{}] from endpoint [{}] with query [{}] ",
+                        uri, rdfEndpoint, innerQuery);
                 ex.getLocalizedMessage();
             } finally {
                 qexec.close();
             }
         } catch (QueryParseException qpe) {
             logger.error("Exception for query [{}]. "
-                    + "Please check your SPARQL query syntax. The label cannot be obtained. Details [{}] ", innerQuery, qpe.getLocalizedMessage());
+                    + "Please check your SPARQL query syntax. The label cannot be obtained. " +
+                    "Details [{}] ", innerQuery, qpe.getLocalizedMessage());
         }
         return uri;
     }
@@ -1662,17 +1718,13 @@ public class Harvester implements Runnable {
             Query query = QueryFactory.create(innerQuery);
             try (QueryExecution qexec = QueryExecutionFactory.create(query, dataset)) {
                 ResultSet results = qexec.execSelect();
-                if (results.hasNext()) {
-                    QuerySolution sol = results.nextSolution();
-                    String result = EEASettings.parseForJson(
-                            sol.getLiteral("label").getLexicalForm());
-                    if (!result.isEmpty()) {
-                        qexec.close();
-                        return result;
-                    }
+                String result = getLexicalForm(results);
+                if (!result.isEmpty()) {
+                    return result;
                 }
             } catch (Exception e) {
-                logger.warn("Could not get label for uri [{}] from TDB [{}] with query [{}] ", uri, tdbLocation, innerQuery);
+                logger.warn("Could not get label for uri [{}] from TDB [{}] with query [{}] ",
+                        uri, tdbLocation, innerQuery);
                 e.getLocalizedMessage();
             }
         } catch (QueryParseException qpe) {
@@ -1682,6 +1734,21 @@ public class Harvester implements Runnable {
         }
         return uri;
     }
+
+    /**
+     * Gets string representation for the result
+     */
+    private String getLexicalForm(ResultSet results) {
+        if (results.hasNext()) {
+            QuerySolution sol = results.nextSolution();
+            String result = RiverUtils.parseForJson(sol.getLiteral("label").getLexicalForm());
+            if (!result.isEmpty()) {
+                return result;
+            }
+        }
+        return "";
+    }
+
 
     /**
      * A method to build up the query based on the uriDescriptionList. The
@@ -1721,9 +1788,8 @@ public class Harvester implements Runnable {
         bind += "BIND(COALESCE(" + labelCoalesce.substring(0, labelCoalesce.length() - 1) + ") AS ?label) ";
 
         //Build up the final query to fetch the corresponding label.
-        String innerQuery = "SELECT ?label "
+        return "SELECT ?label "
                 + "WHERE { GRAPH ?G { " + options + bind + "} " + filter + "} " + "LIMIT 1";
-        return innerQuery;
     }
 
     private enum QueryType {

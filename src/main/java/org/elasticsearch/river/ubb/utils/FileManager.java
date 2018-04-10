@@ -1,4 +1,4 @@
-package org.elasticsearch.river.eea_rdf.utils;
+package org.elasticsearch.river.ubb.utils;
 
 
 import org.apache.jena.atlas.web.HttpException;

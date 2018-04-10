@@ -1,4 +1,4 @@
-package org.elasticsearch.river.eea_rdf.support;
+package org.elasticsearch.river.ubb.support;
 
 
 /**
@@ -26,7 +26,7 @@ public class ContextFactory {
     /**
      * Create Flat context implementation for a given context
      */
-    public static ContextTransformer flatContext(String context) {
+    public static synchronized ContextTransformer flatContext(String context) {
         if (transformer == null) {
             transformer = new FlatContextTransformer(context);
         }
