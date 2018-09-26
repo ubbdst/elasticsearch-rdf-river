@@ -1,5 +1,6 @@
 package org.elasticsearch.river.ubb.support;
 
+import org.apache.jena.atlas.web.HttpException;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
@@ -1053,22 +1054,31 @@ public class Harvester implements Runnable {
      */
     private void harvest(QueryExecution qexec) throws IOException {
         boolean retry;
+        int countRetry = 0;
+        int totalRetry = 5;
         do {
             retry = false;
             try {
                 Model model = getModel(qexec);
                 addModelToElasticsearch(model, client.prepareBulk());
-            } catch (QueryExceptionHTTP httpe) {
+            }
+            catch (QueryExceptionHTTP httpe) {
                 if (httpe.getResponseCode() >= 500) {
                     retry = true;
-                    logger.error("Encountered an internal server error "
-                            + "while harvesting. Retrying!");
+                    countRetry++;
+                    logger.error("Encountered internal server error while harvesting. " +
+                            "Retrying... {}", countRetry);
                 } else {
                     throw httpe;
                 }
-            } catch (Exception e) {
-                logger.error("Exception occurred while harvesting " +
-                        "with details:  [{}] ", e.getLocalizedMessage());
+                if (countRetry > totalRetry) {
+                    //if we have reached maximum retries, exit
+                    break;
+                }
+            }
+            catch (Exception e) {
+                logger.error("Exception occurred while harvesting with details:  [{}] ",
+                        e.getLocalizedMessage());
                 e.printStackTrace();
             }
         } while (retry);
