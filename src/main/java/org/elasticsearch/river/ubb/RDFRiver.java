@@ -125,8 +125,7 @@ public class RDFRiver extends AbstractRiverComponent implements River {
                         rdfSettings.get("addLanguage"),
                         Defaults.DEFAULT_ADD_LANGUAGE))
                 .rdfLanguage(XContentMapValues.nodeStringValue(
-                        rdfSettings.get("language"),
-                        Defaults.DEFAULT_LANGUAGE))
+                        rdfSettings.get("language"), Defaults.DEFAULT_LANGUAGE))
                 .rdfAddUriForResource(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("includeResourceURI"),
                         Defaults.DEFAULT_ADD_URI))

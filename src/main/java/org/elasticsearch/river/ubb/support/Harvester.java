@@ -12,6 +12,8 @@ import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RiotException;
 import org.apache.jena.sparql.engine.http.QueryExceptionHTTP;
 import org.apache.jena.tdb.TDBFactory;
+import org.apache.lucene.queryparser.xml.QueryBuilderFactory;
+import org.apache.lucene.util.QueryBuilder;
 import org.elasticsearch.ElasticsearchIllegalStateException;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
@@ -1729,13 +1731,12 @@ public class Harvester implements Runnable {
             try (QueryExecution qexec = QueryExecutionFactory.create(query, dataset)) {
                 ResultSet results = qexec.execSelect();
                 String result = getLexicalForm(results);
-                if (!result.isEmpty()) {
+                if (Strings.hasText(result)) {
                     return result;
                 }
             } catch (Exception e) {
                 logger.warn("Could not get label for uri [{}] from TDB [{}] with query [{}] ",
                         uri, tdbLocation, innerQuery);
-                e.getLocalizedMessage();
             }
         } catch (QueryParseException qpe) {
             logger.error("Exception for query [{}]. "
@@ -1748,16 +1749,59 @@ public class Harvester implements Runnable {
     /**
      * Gets string representation for the result
      */
-    private String getLexicalForm(ResultSet results) {
+   /* private String getLexicalForm(ResultSet results) {
         if (results.hasNext()) {
             QuerySolution sol = results.nextSolution();
-            String result = RiverUtils.parseForJson(sol.getLiteral("label").getLexicalForm());
+            //String result = RiverUtils.parseForJson(sol.getLiteral("label").getLexicalForm());
+            String lexical = RiverUtils.parseForJson(sol.getLiteral("label").getLexicalForm());
+            String lang = sol.getLiteral("label").getLanguage();
+            String result = lang + "#" + lexical;
             if (!result.isEmpty()) {
                 return result;
             }
         }
         return "";
     }
+    */
+
+
+    /**
+     * Gets string representation for the result.
+     *
+     * TODO:
+     * We should get all labels for all languages and not only single label,
+     * but at the moment, we don't have multi-lingual data, and the front-end does not handle that
+     */
+    private String getLexicalForm(ResultSet results) {
+        String lexical = getLexcalForLanguage(language, results);
+        if(lexical.isEmpty()) {  //if no lexical for such language, try without language
+            lexical = getLexcalForLanguage("", results);
+        }
+       return lexical;
+    }
+
+    /**
+     * Gets the first lexical of a given language, otherwise return empty string
+     */
+    private String getLexcalForLanguage(String lang, ResultSet results) {
+        while (results.hasNext()) {
+            QuerySolution sol = results.nextSolution();
+            try {
+                Literal literal = sol.getLiteral("label");
+                if (Objects.nonNull(literal)) {
+                    if (literal.getLanguage().equalsIgnoreCase(lang)) {
+                        return lang + "#" + literal.getLexicalForm();
+                    }
+                }
+            } catch (NullPointerException ex) {
+                logger.error("Could not get label for literal [{}] ", sol.toString());
+                ex.printStackTrace();
+            }
+        }
+        return "";
+    }
+
+
 
 
     /**
@@ -1777,7 +1821,6 @@ public class Harvester implements Runnable {
      * "BIND(COALESCE(?foafName,?rdfLabel,?prefLabel) AS ?label) " + "}} "
      */
     private String getInnerQueryForLabel(String uri) {
-
         String options = "";
         String bind = "";
         int count = 0;
@@ -1785,7 +1828,15 @@ public class Harvester implements Runnable {
 
         //This is too specific to the University of Bergen Library´s Ontology.
         //In the future, you might want to let the default language be automatically picked up.
-        String filter = "FILTER (langMatches(lang(?label), \"\") || langMatches(lang(?label), \"no\")) ";
+        String filter;
+        if(language.equalsIgnoreCase(Defaults.DEFAULT_LANGUAGE)) {
+            filter = "FILTER ( langMatches(lang(?label), \"" + language + "\") " +
+                    "FILTER ( langMatches(lang(?label), \"" + language + "\") " +
+                    " || langMatches(lang(?label), \"\"))" + " || langMatches(lang(?label), \"\"))";
+        }
+        else {
+            filter = "FILTER (langMatches(lang(?label), \"" + language + "\"))";
+        }
 
         //Iterate over the list and build up the options.
         for (String property : uriDescriptionList) {
@@ -1799,7 +1850,9 @@ public class Harvester implements Runnable {
 
         //Build up the final query to fetch the corresponding label.
         return "SELECT ?label "
-                + "WHERE { GRAPH ?G { " + options + bind + "} " + filter + "} " + "LIMIT 1";
+               // + "WHERE { GRAPH ?G { " + options + bind + "} " + filter + "} LIMIT 1";
+              + "WHERE { GRAPH ?G { " + options + bind + "}}";
+
     }
 
     private enum QueryType {
