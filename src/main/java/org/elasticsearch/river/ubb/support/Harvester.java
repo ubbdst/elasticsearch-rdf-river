@@ -1,6 +1,5 @@
 package org.elasticsearch.river.ubb.support;
 
-import org.apache.jena.atlas.web.HttpException;
 import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.NodeFactory;
@@ -25,6 +24,7 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.river.ubb.settings.Defaults;
 import org.elasticsearch.river.ubb.settings.RiverUtils;
+import org.elasticsearch.river.ubb.utils.FileManager;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -82,6 +82,7 @@ public class Harvester implements Runnable {
     private String indexName;
     private String typeName;
     private String riverName;
+    private String textField;
     private Boolean closed = false;
     private HashMap<String, String> uriLabelCache;
     private Dataset tdbDataset = null;
@@ -172,6 +173,11 @@ public class Harvester implements Runnable {
      */
     public Harvester rdfQuery(List<String> query) {
         rdfQueries = new ArrayList<>(query);
+        return this;
+    }
+
+    public Harvester textField(String extractField) {
+        this.textField = extractField;
         return this;
     }
 
@@ -1306,6 +1312,26 @@ public class Harvester implements Runnable {
                     }
                 }
 
+                // Read and index contents of a given URL
+                if(Strings.hasText(textField) && property.equals(textField)) {
+                    try {
+                        logger.info("Reading file content from: " + currentValue);
+
+                        // Build output field based on textField
+                        // If the input field is normalized, use also the normalized form for
+                        // output field
+                        String outField = textField;
+                        if (willNormalizeProp && normalizeProp.containsKey(textField)) {
+                            outField = normalizeProp.get(textField);
+                        }
+                        jsonMap.put(outField.concat("Content"), FileManager.read(currentValue, 5));
+                    }
+                    catch (Exception e) {
+                        logger.error("Cannot read content from {}", currentValue);
+                        e.printStackTrace();
+                    }
+                }
+
                 if (addLanguage) {
                     if (node.isLiteral()) {
                         lang = node.asLiteral().getLanguage();
@@ -1785,7 +1811,7 @@ public class Harvester implements Runnable {
 
         //This is too specific to the University of Bergen Library´s Ontology.
         //In the future, you might want to let the default language be automatically picked up.
-        String filter = "FILTER (langMatches(lang(?label), \"\") || langMatches(lang(?label), \"no\")) ";
+        String filter = "FILTER (langMatches(lang(?label), \"\") || langMatches(lang(?label), \"no\"))  ";
 
         //Iterate over the list and build up the options.
         for (String property : uriDescriptionList) {

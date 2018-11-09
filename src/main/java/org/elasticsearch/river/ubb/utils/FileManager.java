@@ -38,7 +38,8 @@ public class FileManager {
                 content = read(url);
             } catch (HttpException httpe) {
                 if (httpe.getResponseCode() >= 500) {
-                    logger.error("Encountered an internal server error. Retrying...");
+                    logger.error("Encountered an internal server error for URL [{}]. " +
+                            "Retrying...", url);
                     retry = true;
                     countRetry++;
                 } else {
