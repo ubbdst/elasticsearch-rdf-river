@@ -1067,8 +1067,7 @@ public class Harvester implements Runnable {
             try {
                 Model model = getModel(qexec);
                 addModelToElasticsearch(model, client.prepareBulk());
-            }
-            catch (QueryExceptionHTTP httpe) {
+            } catch (QueryExceptionHTTP httpe) {
                 if (httpe.getResponseCode() >= 500) {
                     retry = true;
                     countRetry++;
@@ -1081,8 +1080,7 @@ public class Harvester implements Runnable {
                     //if we have reached maximum retries, exit
                     break;
                 }
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 logger.error("Exception occurred while harvesting with details:  [{}] ",
                         e.getLocalizedMessage());
                 e.printStackTrace();
@@ -1139,6 +1137,35 @@ public class Harvester implements Runnable {
     }
 
     /**
+     * Execute describe model
+     */
+    private Model describe(Resource resource) {
+        try (QueryExecution qE = QueryExecutionFactory.sparqlService(rdfEndpoint,
+                " PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> \n" +
+                "PREFIX ubbont: <http://data.ub.uib.no/ontology/> \n" +
+                "PREFIX geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> \n" +
+                "PREFIX foaf: <http://xmlns.com/foaf/0.1/> \n" +
+                "PREFIX dct: <http://purl.org/dc/terms/> \n" +
+                "PREFIX bibo: <http://purl.org/ontology/bibo/> \n" +
+                "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> \n" +
+                "PREFIX owl: <http://www.w3.org/2002/07/owl#> \n" +
+                "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> \n" +
+                "PREFIX skos: <http://www.w3.org/2004/02/skos/core#> \n" +
+                "PREFIX ecrm: <http://erlangen-crm.org/current/>\n" +
+                "PREFIX mmdr: <http://purl.org/momayo/mmdr/>\n" +
+                "PREFIX mmgraph: <http://data.ub.uib.no/graphs/>\n" +
+                "PREFIX mmo: <http://purl.org/momayo/mmo/>\n" +
+                "PREFIX ub: <http://www.lehigh.edu/~zhp2/2004/0401/univ-bench.owl#>\n" +
+                "PREFIX mmd: <http://musicbrainz.org/ns/mmd-1.0#>\n" +
+                "PREFIX mm: <http://linkedmultimedia.org/sparql-mm/ns/2.0.0/function#>\n" +
+                "PREFIX dc: <http://purl.org/dc/elements/1.1/> " + " DESCRIBE <" + resource.toString() + ">")) {
+
+            logger.info("Describe parent" + qE.toString());
+          return getDescribeModel(qE);
+        }
+    }
+
+    /**
      * Harvest from TDB using queries specified from {@link #rdfQueries
      * and/or path specified in {@link #queryPath}.
      */
@@ -1170,7 +1197,7 @@ public class Harvester implements Runnable {
         //Harvesting from file path
         if (Strings.hasText(queryPath)) {
             logger.info("Harvesting from TDB [{}] using query path [{}] for river [{}] " +
-                             "on index [{}] and type [{}]", tdbLocation, queryPath,
+                            "on index [{}] and type [{}]", tdbLocation, queryPath,
                     riverName, indexName, typeName);
             Query queryFromPath = null;
             try {
@@ -1190,7 +1217,7 @@ public class Harvester implements Runnable {
     /**
      * Creates or connects to the TDB-backend
      *
-     * @param  path location to a TDB dataset
+     * @param path location to a TDB dataset
      * @return dataset or null if cannot create or connect
      */
     private Dataset createOrConnect(String path) {
@@ -1198,12 +1225,10 @@ public class Harvester implements Runnable {
         try {
             //Create or connect to the TDB-backend
             dataset = TDBFactory.createDataset(path);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             logger.error("Cannot create or connect to dataset for path: [{}]", path);
             throw e;
-        }
-        finally {
+        } finally {
             // Store this TDB dataset such that we can use it afterwards
             // e.g for getting labels
             setTDBDataset(dataset);
@@ -1313,9 +1338,9 @@ public class Harvester implements Runnable {
                 }
 
                 // Read and index contents of a given URL
-                if(Strings.hasText(textField) && property.equals(textField)) {
+                if (Strings.hasText(textField) && property.equals(textField)) {
                     try {
-                        logger.info("Reading file content from: " + currentValue);
+                        logger.info("Reading URL content from: " + currentValue);
 
                         // Build output field based on textField
                         // If the input field is normalized, use also the normalized form for
@@ -1325,11 +1350,23 @@ public class Harvester implements Runnable {
                             outField = normalizeProp.get(textField);
                         }
                         jsonMap.put(outField.concat("Content"), FileManager.read(currentValue, 5));
-                    }
-                    catch (Exception e) {
+                    } catch (Exception e) {
                         logger.error("Cannot read content from {}", currentValue);
                         e.printStackTrace();
                     }
+                }
+
+                //Embed parent to the child
+                if (property.equals("http://purl.org/momayo/mmo/parent") && node.isResource()) {
+                    logger.info("Embedding parent " + node.asResource().getURI() + " to child " + rs);
+                    Resource resource = node.asResource();
+                    // if(!resource.equals(rs)) {
+                    Map<String, Object> parentJsonMap = getJsonMap(
+                            resource,
+                            getProperties(resource.listProperties()),
+                            describe(resource));
+                    jsonMap.put("_parent", parentJsonMap);
+                    //   }
                 }
 
                 if (addLanguage) {
@@ -1437,6 +1474,31 @@ public class Harvester implements Runnable {
         return jsonMap;
     }
 
+
+    /**
+     * Gets all properties that match our criteria
+     *
+     * @param iter statement iterator
+     * @return set of properties
+     */
+    private Set<Property> getProperties(StmtIterator iter) {
+        Set<Property> properties = new HashSet<>();
+        while (iter.hasNext()) {
+            Statement st = iter.nextStatement();
+            Property prop = st.getPredicate();
+            String property = prop.toString();
+
+            if (!hasList
+                    || (rdfListType && rdfPropList.contains(property))
+                    || (!rdfListType && !rdfPropList.contains(property))
+                    || (willNormalizeProp && normalizeProp.containsKey(property))) {
+                properties.add(prop);
+            }
+        }
+        return properties;
+    }
+
+
     /**
      * Index or update all the resources in a Jena Model to ES Note: Update
      * works if the user has specified the flag <tt>updateDocuments</tt> to true in
@@ -1449,7 +1511,6 @@ public class Harvester implements Runnable {
     private void addModelToElasticsearch(Model model, BulkRequestBuilder bulkRequest) {
         logger.info("Indexing into Elasticsearch for river [{}] on index [{}] and type [{}]",
                 riverName, indexName, typeName);
-
         //Abort if model is empty
         if (Objects.isNull(model) || model.isEmpty()) {
             logger.warn("Encountered empty model for river [{}]. Aborting ...", riverName);
@@ -1457,32 +1518,12 @@ public class Harvester implements Runnable {
         }
         long startTime = System.currentTimeMillis();
         long bulkLength = 0;
-        HashSet<Property> properties = new HashSet<>();
-
-        StmtIterator iter = model.listStatements();
-        while (iter.hasNext()) {
-            Statement st = iter.nextStatement();
-            Property prop = st.getPredicate();
-            String property = prop.toString();
-
-            if (!hasList
-                    || (rdfListType && rdfPropList.contains(property))
-                    || (!rdfListType && !rdfPropList.contains(property))
-                    || (willNormalizeProp && normalizeProp.containsKey(property))) {
-                properties.add(prop);
-            }
-            //Print out the property that is ignored.
-            //else {logger.info("Ignoring Property: " + prop);}
-        }
-
-        ResIterator rsiter = model.listSubjects();
-
-        while (rsiter.hasNext()) {
-            Resource rs = rsiter.nextResource();
+        Set<Property> properties = getProperties(model.listStatements());
+        ResIterator resIterator = model.listSubjects();
+        while (resIterator.hasNext()) {
+            Resource rs = resIterator.nextResource();
             Map<String, Object> jsonMap = getJsonMap(rs, properties, model);
-
-            //If updateDocuments is set to true, then prepare to update this document
-            if (updateDocuments) {
+            if (updateDocuments) { //If updateDocuments is set to true, then prepare to update this document
                 prepareUpdateDocument(bulkRequest, convertSingleValueListToString(jsonMap), rs.toString());
             } else {
                 //Otherwise, prepare to index this document
@@ -1490,20 +1531,15 @@ public class Harvester implements Runnable {
             }
 
             bulkLength++;
-
             // We want to execute the bulk for every numberOfBulkActions requests
             if (bulkLength % numberOfBulkActions == 0) {
-
                 BulkResponse bulkResponse = bulkRequest.execute().actionGet();
-                // After executing, clear the BulkRequestBuilder.
-                bulkRequest = client.prepareBulk();
-
+                bulkRequest = client.prepareBulk();// After executing, clear the BulkRequestBuilder.
                 if (bulkResponse.hasFailures()) {
                     processBulkResponseFailure(bulkResponse);
                 }
             }
         }
-
         // Execute remaining requests
         if (bulkRequest.numberOfActions() > 0) {
             BulkResponse response = bulkRequest.execute().actionGet();
@@ -1511,11 +1547,9 @@ public class Harvester implements Runnable {
             if (response.hasFailures()) {
                 processBulkResponseFailure(response);
             }
-
         }
 
         long finishTime = System.currentTimeMillis();
-
         //Show time taken to perform the action
         String actionPerformed = updateDocuments ? "updated" : "indexed";
         logger.info("\n-------------------------------------------"
@@ -1676,7 +1710,7 @@ public class Harvester implements Runnable {
                     if (tdbDataset != null) {
                         result = getLabelForUriFromTDB(result, tdbDataset);
                     } else {//Fall back
-                        if(!rdfEndpoint.isEmpty()) {
+                        if (!rdfEndpoint.isEmpty()) {
                             result = getLabelForUriFromEndpoint(result);
                         }
                     }
