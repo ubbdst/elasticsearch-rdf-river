@@ -634,11 +634,9 @@ public class Harvester implements Runnable {
         } else {
             success = runSync();
         }
-
         if (success) {
             setLastUpdate(new Date(currentTime));
         }
-
         //Delete river if specified by a user
         if (deleteRiverMappingAfterCreation) {
             try {
@@ -1137,32 +1135,21 @@ public class Harvester implements Runnable {
     }
 
     /**
-     * Execute describe model
+     * Executes describe query for a given resource against a TDB dataset or endpoint
      */
     private Model describe(Resource resource) {
-        try (QueryExecution qE = QueryExecutionFactory.sparqlService(rdfEndpoint,
-                " PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> \n" +
-                "PREFIX ubbont: <http://data.ub.uib.no/ontology/> \n" +
-                "PREFIX geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> \n" +
-                "PREFIX foaf: <http://xmlns.com/foaf/0.1/> \n" +
-                "PREFIX dct: <http://purl.org/dc/terms/> \n" +
-                "PREFIX bibo: <http://purl.org/ontology/bibo/> \n" +
-                "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> \n" +
-                "PREFIX owl: <http://www.w3.org/2002/07/owl#> \n" +
-                "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> \n" +
-                "PREFIX skos: <http://www.w3.org/2004/02/skos/core#> \n" +
-                "PREFIX ecrm: <http://erlangen-crm.org/current/>\n" +
-                "PREFIX mmdr: <http://purl.org/momayo/mmdr/>\n" +
-                "PREFIX mmgraph: <http://data.ub.uib.no/graphs/>\n" +
-                "PREFIX mmo: <http://purl.org/momayo/mmo/>\n" +
-                "PREFIX ub: <http://www.lehigh.edu/~zhp2/2004/0401/univ-bench.owl#>\n" +
-                "PREFIX mmd: <http://musicbrainz.org/ns/mmd-1.0#>\n" +
-                "PREFIX mm: <http://linkedmultimedia.org/sparql-mm/ns/2.0.0/function#>\n" +
-                "PREFIX dc: <http://purl.org/dc/elements/1.1/> " + " DESCRIBE <" + resource.toString() + ">")) {
+        String describeQuery = "DESCRIBE <" + resource.toString() + ">";
 
-            logger.info("Describe parent" + qE.toString());
-          return getDescribeModel(qE);
+        if (tdbDataset != null) { //Try TDB
+            try (QueryExecution qE = QueryExecutionFactory.create(describeQuery, tdbDataset)) {
+                return getDescribeModel(qE);
+            }
+        } else if (Strings.hasText(rdfEndpoint)) { //Try endpoint
+            try (QueryExecution qE = QueryExecutionFactory.sparqlService(rdfEndpoint, describeQuery)) {
+                return getDescribeModel(qE);
+            }
         }
+        return null;  //if all are not available, return null
     }
 
     /**
@@ -1170,9 +1157,7 @@ public class Harvester implements Runnable {
      * and/or path specified in {@link #queryPath}.
      */
     private void harvestFromTDB() {
-
-        //Harvesting from a list of RDF Queries
-        if (!rdfQueries.isEmpty()) {
+        if (!rdfQueries.isEmpty()) { //Harvesting from a list of RDF Queries
             Query queryFromList;
             for (String rdfQuery : rdfQueries) {
                 logger.info("Harvesting from TDB store [{}] for river [{}] on index [{}] and type [{}]",
@@ -1193,9 +1178,7 @@ public class Harvester implements Runnable {
 
             }
         }
-
-        //Harvesting from file path
-        if (Strings.hasText(queryPath)) {
+        if (Strings.hasText(queryPath)) {//harvesting from file path
             logger.info("Harvesting from TDB [{}] using query path [{}] for river [{}] " +
                             "on index [{}] and type [{}]", tdbLocation, queryPath,
                     riverName, indexName, typeName);
@@ -1284,6 +1267,42 @@ public class Harvester implements Runnable {
         }
     }
 
+    private Map<String, Object> getJsonMap2(Resource rs, Set<Property> properties, Model model) {
+        Map<String, Object> jsonMap = new HashMap<>();
+        List<Object> objects = new ArrayList<>();
+        if (addUriForResource) {
+            String normalizedProperty = Defaults.DEFAULT_RESOURCE_URI;
+            // If a property is defined in the normProp list, then use
+            // the normalized (shorten) property.
+            if (willNormalizeProp && normalizeProp.containsKey(Defaults.DEFAULT_RESOURCE_URI)) {
+                normalizedProperty = normalizeProp.get(Defaults.DEFAULT_RESOURCE_URI);
+            }
+            jsonMap.put(normalizedProperty, rs.toString());
+        }
+        for (Property prop : properties) {
+            NodeIterator niter = model.listObjectsOfProperty(rs, prop);
+            String property = prop.toString();
+            String currentValue;
+            while (niter.hasNext()) {
+                RDFNode node = niter.next();
+                currentValue = getStringForResult(rs, node);
+                //If a literal contains empty value, skip and do not index
+                if (currentValue.isEmpty()) {
+                    continue;
+                }
+                String normalizedProp = property;
+                if (willNormalizeProp && normalizeProp.containsKey(property)) {
+                    normalizedProp = normalizeProp.get(property);
+                }
+                if (jsonMap.containsKey(normalizedProp)) {
+
+                }
+                jsonMap.put(normalizedProp, currentValue);
+            }
+        }
+        return jsonMap;
+    }
+
     /**
      * Get JSON map for a given resource by applying the river settings
      *
@@ -1356,17 +1375,25 @@ public class Harvester implements Runnable {
                     }
                 }
 
-                //Embed parent to the child
+                //Embed one resource to another
                 if (property.equals("http://purl.org/momayo/mmo/parent") && node.isResource()) {
-                    logger.info("Embedding parent " + node.asResource().getURI() + " to child " + rs);
+                    //logger.info("Embedding resource " + node.asResource().getURI() + " to " + rs);
                     Resource resource = node.asResource();
-                    // if(!resource.equals(rs)) {
-                    Map<String, Object> parentJsonMap = getJsonMap(
-                            resource,
-                            getProperties(resource.listProperties()),
-                            describe(resource));
-                    jsonMap.put("_parent", parentJsonMap);
-                    //   }
+                    Model embedModel = describe(resource);
+                    Set<Property> embedProperties = getProperties(embedModel.listStatements());
+
+                    boolean wasSuggestOn = false;
+                    if(isAutoSuggestionEnabled) {//switch off suggestion for embedded document
+                        wasSuggestOn = true;
+                        isAutoSuggestionEnabled = false;
+                    }
+                    //Recursive call to embed another resource
+                    Map<String, Object> embedJsonMap = getJsonMap(resource, embedProperties, embedModel);
+                    jsonMap.put("_embed", convertSingleValueListToString(embedJsonMap));
+
+                    if(wasSuggestOn) {//Turn back on the suggestion
+                        isAutoSuggestionEnabled = true;
+                    }
                 }
 
                 if (addLanguage) {
@@ -1455,6 +1482,7 @@ public class Harvester implements Runnable {
                 jsonMap.put("language", langs.size() == 1 ? langs.get(0) : langs);
             }
         }
+
         if (willNormalizeMissing) {
             for (Map.Entry<String, String> it : normalizeMissing.entrySet()) {
                 if (!jsonMap.containsKey(it.getKey())) {
@@ -1523,7 +1551,9 @@ public class Harvester implements Runnable {
         while (resIterator.hasNext()) {
             Resource rs = resIterator.nextResource();
             Map<String, Object> jsonMap = getJsonMap(rs, properties, model);
-            if (updateDocuments) { //If updateDocuments is set to true, then prepare to update this document
+
+            //If updateDocuments is set to true, then prepare to update this document
+            if (updateDocuments) {
                 prepareUpdateDocument(bulkRequest, convertSingleValueListToString(jsonMap), rs.toString());
             } else {
                 //Otherwise, prepare to index this document
@@ -1536,6 +1566,7 @@ public class Harvester implements Runnable {
                 BulkResponse bulkResponse = bulkRequest.execute().actionGet();
                 bulkRequest = client.prepareBulk();// After executing, clear the BulkRequestBuilder.
                 if (bulkResponse.hasFailures()) {
+                    // Handle failure by iterating through each bulk response item
                     processBulkResponseFailure(bulkResponse);
                 }
             }
@@ -1543,7 +1574,6 @@ public class Harvester implements Runnable {
         // Execute remaining requests
         if (bulkRequest.numberOfActions() > 0) {
             BulkResponse response = bulkRequest.execute().actionGet();
-            // Handle failure by iterating through each bulk response item
             if (response.hasFailures()) {
                 processBulkResponseFailure(response);
             }
@@ -1559,7 +1589,7 @@ public class Harvester implements Runnable {
                 + "\n\tIndex: " + indexName
                 + "\n\tType: " + typeName
                 + "\n\tTime to index: " + getTimeString(finishTime - startTime)
-                + "\n\tTotal time: " + getTimeString(finishTime - getTimeStarted())
+                + "\n\tTotal time (query + index): " + getTimeString(finishTime - getTimeStarted())
                 + "\n-------------------------------------------");
     }
 
@@ -1644,8 +1674,8 @@ public class Harvester implements Runnable {
      */
     private Map<String, Object> convertSingleValueListToString(Map<String, Object> map) {
         for (Map.Entry<String, Object> entry : map.entrySet()) {
-            if (entry.getValue() instanceof java.util.ArrayList) {
-                ArrayList value = (ArrayList) entry.getValue();
+            if (entry.getValue() instanceof List) {
+                List value = (List) entry.getValue();
                 if (value.size() == 1) {
                     map.put(entry.getKey(), value.get(0));
                 }
