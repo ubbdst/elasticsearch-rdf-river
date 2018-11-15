@@ -39,7 +39,7 @@ public final class Defaults {
             "\"http://www.w3.org/1999/02/22-rdf-syntax-ns#about\"" + "]";
     public final static String DEFAULT_RESOURCE_URI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#about";
     public final static String DEFAULT_LIST_TYPE = "white";
-    public final static Boolean DEFAULT_ADD_LANGUAGE = true;
+    public final static Boolean DEFAULT_ADD_LANGUAGE = false;
     public final static String DEFAULT_LANGUAGE = "no";
     public final static Boolean DEFAULT_ADD_URI = true;
     public final static Boolean DEFAULT_UPDATE_DOCUMENTS = false;

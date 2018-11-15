@@ -83,6 +83,7 @@ public class Harvester implements Runnable {
     private String typeName;
     private String riverName;
     private String textField;
+    private String embedResourceUsingProperty;
     private Boolean closed = false;
     private HashMap<String, String> uriLabelCache;
     private Dataset tdbDataset = null;
@@ -100,8 +101,8 @@ public class Harvester implements Runnable {
      */
     public Harvester rdfUrl(String url) {
         url = url.substring(1, url.length() - 1);
-        uriLabelCache = new HashMap<String, String>();
-        rdfUrls = new HashSet<String>(Arrays.asList(url.split(",")));
+        uriLabelCache = new HashMap<>();
+        rdfUrls = new HashSet<>(Arrays.asList(url.split(",")));
         return this;
     }
 
@@ -182,6 +183,17 @@ public class Harvester implements Runnable {
     }
 
     /**
+     * Embed resource to another using this property
+     *
+     * @param embedProperty a property used to embed a resource
+     * @return the same {@link Harvester} with the embedResourceUsingProperty parameter set
+     */
+    public Harvester embedResource(String embedProperty) {
+        this.embedResourceUsingProperty = embedProperty;
+        return this;
+    }
+
+    /**
      * Sets the {@link Harvester}'s {@link #rdfQueryPath(String)} parameter
      *
      * @param pathToSparqlQuery a path where SPARQL query can be read
@@ -225,7 +237,7 @@ public class Harvester implements Runnable {
     public Harvester rdfPropList(List<String> list) {
         if (!list.isEmpty()) {
             hasList = true;
-            rdfPropList = new ArrayList<String>(list);
+            rdfPropList = new ArrayList<>(list);
         }
         return this;
     }
@@ -1267,42 +1279,6 @@ public class Harvester implements Runnable {
         }
     }
 
-    private Map<String, Object> getJsonMap2(Resource rs, Set<Property> properties, Model model) {
-        Map<String, Object> jsonMap = new HashMap<>();
-        List<Object> objects = new ArrayList<>();
-        if (addUriForResource) {
-            String normalizedProperty = Defaults.DEFAULT_RESOURCE_URI;
-            // If a property is defined in the normProp list, then use
-            // the normalized (shorten) property.
-            if (willNormalizeProp && normalizeProp.containsKey(Defaults.DEFAULT_RESOURCE_URI)) {
-                normalizedProperty = normalizeProp.get(Defaults.DEFAULT_RESOURCE_URI);
-            }
-            jsonMap.put(normalizedProperty, rs.toString());
-        }
-        for (Property prop : properties) {
-            NodeIterator niter = model.listObjectsOfProperty(rs, prop);
-            String property = prop.toString();
-            String currentValue;
-            while (niter.hasNext()) {
-                RDFNode node = niter.next();
-                currentValue = getStringForResult(rs, node);
-                //If a literal contains empty value, skip and do not index
-                if (currentValue.isEmpty()) {
-                    continue;
-                }
-                String normalizedProp = property;
-                if (willNormalizeProp && normalizeProp.containsKey(property)) {
-                    normalizedProp = normalizeProp.get(property);
-                }
-                if (jsonMap.containsKey(normalizedProp)) {
-
-                }
-                jsonMap.put(normalizedProp, currentValue);
-            }
-        }
-        return jsonMap;
-    }
-
     /**
      * Get JSON map for a given resource by applying the river settings
      *
@@ -1315,6 +1291,7 @@ public class Harvester implements Runnable {
         Map<String, Object> jsonMap = new HashMap<>();
         List<String> results = new ArrayList<>();
         Set<String> suggestInputs = new HashSet<>();
+        Set<String> rdfLanguages = new HashSet<>();
 
         if (addUriForResource) {
             results.add(rs.toString());
@@ -1327,7 +1304,6 @@ public class Harvester implements Runnable {
             }
             jsonMap.put(normalizedProperty, results);
         }
-        Set<String> rdfLanguages = new HashSet<>();
         for (Property prop : properties) {
             NodeIterator niter = model.listObjectsOfProperty(rs, prop);
             String property = prop.toString();
@@ -1356,31 +1332,12 @@ public class Harvester implements Runnable {
                     }
                 }
 
-                // Read and index contents of a given URL
-                if (Strings.hasText(textField) && property.equals(textField)) {
-                    try {
-                        logger.info("Reading URL content from: " + currentValue);
-
-                        // Build output field based on textField
-                        // If the input field is normalized, use also the normalized form for
-                        // output field
-                        String outField = textField;
-                        if (willNormalizeProp && normalizeProp.containsKey(textField)) {
-                            outField = normalizeProp.get(textField);
-                        }
-                        jsonMap.put(outField.concat("Content"), FileManager.read(currentValue, 5));
-                    } catch (Exception e) {
-                        logger.error("Cannot read content from {}", currentValue);
-                        e.printStackTrace();
-                    }
-                }
-
-                //Embed one resource to another
-                if (property.equals("http://purl.org/momayo/mmo/parent") && node.isResource()) {
-                    //logger.info("Embedding resource " + node.asResource().getURI() + " to " + rs);
-                    Resource resource = node.asResource();
-                    Model embedModel = describe(resource);
-                    Set<Property> embedProperties = getProperties(embedModel.listStatements());
+                //Embed one resource to another using the given property
+                if (node.isResource() && property.equals(embedResourceUsingProperty)) {
+                    logger.info("Embedding resource " + node.asResource().getURI() + " to " + rs);
+                    Resource eResource = node.asResource();
+                    Model eModel = describe(eResource);
+                    Set<Property> eProperties = getProperties(eModel.listStatements());
 
                     boolean wasSuggestOn = false;
                     if(isAutoSuggestionEnabled) {//switch off suggestion for embedded document
@@ -1388,11 +1345,29 @@ public class Harvester implements Runnable {
                         isAutoSuggestionEnabled = false;
                     }
                     //Recursive call to embed another resource
-                    Map<String, Object> embedJsonMap = getJsonMap(resource, embedProperties, embedModel);
-                    jsonMap.put("_embed", convertSingleValueListToString(embedJsonMap));
-
+                    jsonMap.put("_embedded", convertSingleValueListToString(getJsonMap(eResource, eProperties, eModel)));
                     if(wasSuggestOn) {//Turn back on the suggestion
                         isAutoSuggestionEnabled = true;
+                    }
+                }
+
+                // Read and index contents of a given URL
+                if (Strings.hasText(textField) && property.equals(textField)) {
+                    try {
+                        logger.info("Reading URL content from: " + currentValue);
+                        jsonMap.put("textContent", FileManager.readAsCP1252(currentValue));
+                        // Build output field based on textField
+                        // If the input field is normalized, use also the normalized form for
+                        // output field
+                        /*String outField = textField;
+                        if (willNormalizeProp && normalizeProp.containsKey(textField)) {
+                            outField = normalizeProp.get(textField);
+                        }
+                        jsonMap.put(outField.concat("Content"), FileManager.readAsCP1252(currentValue));
+                        */
+                    } catch (Exception e) {
+                        logger.error("Cannot read content from {}", currentValue);
+                        e.printStackTrace();
                     }
                 }
 
@@ -1404,6 +1379,7 @@ public class Harvester implements Runnable {
                         }
                     }
                 }
+
                 //Add values to suggest field for auto suggestion.
                 if (isAutoSuggestionEnabled) {
                     //Filter the value, such that it should not contain weird characters
@@ -1422,8 +1398,7 @@ public class Harvester implements Runnable {
                         }
 
                         //Add value to the list
-                        if (Strings.hasText(suggestValue)
-                                && Character.isLetter(suggestValue.charAt(0))) {
+                        if (Strings.hasText(suggestValue) && Character.isLetter(suggestValue.charAt(0))) {
                             suggestInputs.add(suggestValue.toLowerCase(Locale.ROOT));
                         }
                     }
@@ -1458,12 +1433,11 @@ public class Harvester implements Runnable {
             //Normalize properties
             if (willNormalizeProp && normalizeProp.containsKey(property)) {
                 property = normalizeProp.get(property);
-                if (jsonMap.containsKey(property)) {
-                    //Needs some testing here.
-                    if (jsonMap.get(property) instanceof ArrayList) {
-                        List<String> values = (ArrayList<String>) jsonMap.get(property);
-                        values.addAll(results);
-                        jsonMap.put(property, values);
+                if (jsonMap.containsKey(property)) {// if we have more than one properties
+                    Object values = jsonMap.get(property);
+                    if (values instanceof List) {
+                        results.addAll((List) values);
+                        jsonMap.put(property, results);
                     }
                 } else {
                     jsonMap.put(property, results);
@@ -1492,7 +1466,8 @@ public class Harvester implements Runnable {
                 }
             }
         }
-        //Put suggest filed in every document
+
+        //Insert suggest filed in every document
         if (suggestInputs.size() > 0) {
             Map<String, Object> suggestMap = new HashMap<>();
             suggestMap.put(Defaults.SUGGESTION_INPUT_FIELD, suggestInputs);
