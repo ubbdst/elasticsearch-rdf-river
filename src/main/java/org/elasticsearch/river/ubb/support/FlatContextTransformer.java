@@ -94,7 +94,7 @@ public class FlatContextTransformer implements ContextTransformer  {
      * Main method for easy debugging
      */
     public static void main(String[] args) {
-        String s = FileManager.read("http://data.ub.uib.no/momayo/context.json", 20);
+        String s = FileManager.readAsUTF8("http://data.ub.uib.no/momayo/context.json", 20);
         Map<String, String> props = ContextFactory.flatContext().transform(s);
         System.out.println(new GsonBuilder()
                 .setPrettyPrinting()

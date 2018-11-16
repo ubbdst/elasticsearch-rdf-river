@@ -196,7 +196,7 @@ public class Harvester implements Runnable {
     /**
      * Sets the {@link Harvester}'s {@link #rdfQueryPath(String)} parameter
      *
-     * @param pathToSparqlQuery a path where SPARQL query can be read
+     * @param pathToSparqlQuery a path where SPARQL query can be readAsUTF8
      * @return the same {@link Harvester} with the {@link #rdfQueryPath(String)} set
      */
     public Harvester rdfQueryPath(String pathToSparqlQuery) {
@@ -1340,13 +1340,13 @@ public class Harvester implements Runnable {
                     Set<Property> eProperties = getProperties(eModel.listStatements());
 
                     boolean wasSuggestOn = false;
-                    if(isAutoSuggestionEnabled) {//switch off suggestion for embedded document
+                    if (isAutoSuggestionEnabled) {//switch off suggestion for embedded document
                         wasSuggestOn = true;
                         isAutoSuggestionEnabled = false;
                     }
                     //Recursive call to embed another resource
                     jsonMap.put("_embedded", convertSingleValueListToString(getJsonMap(eResource, eProperties, eModel)));
-                    if(wasSuggestOn) {//Turn back on the suggestion
+                    if (wasSuggestOn) {//Turn back on the suggestion
                         isAutoSuggestionEnabled = true;
                     }
                 }
@@ -1355,18 +1355,17 @@ public class Harvester implements Runnable {
                 if (Strings.hasText(textField) && property.equals(textField)) {
                     try {
                         logger.info("Reading URL content from: " + currentValue);
-                        jsonMap.put("textContent", FileManager.readAsCP1252(currentValue));
-                        // Build output field based on textField
-                        // If the input field is normalized, use also the normalized form for
-                        // output field
-                        /*String outField = textField;
-                        if (willNormalizeProp && normalizeProp.containsKey(textField)) {
-                            outField = normalizeProp.get(textField);
+                        String urlContent;
+                        try {
+                            urlContent = FileManager.readAsUTF8(currentValue, 5);
+                        } catch (org.apache.jena.shared.WrappedIOException ex) {
+                            //Retry with CP1252
+                            logger.warn("Cannot read with UTF8, retrying with CP252", currentValue);
+                            urlContent = FileManager.readAsCP1252(currentValue);
                         }
-                        jsonMap.put(outField.concat("Content"), FileManager.readAsCP1252(currentValue));
-                        */
+                        jsonMap.put("textContent", urlContent);
                     } catch (Exception e) {
-                        logger.error("Cannot read content from {}", currentValue);
+                        logger.error("Cannot read content from {} {}", currentValue, e.getLocalizedMessage());
                         e.printStackTrace();
                     }
                 }
