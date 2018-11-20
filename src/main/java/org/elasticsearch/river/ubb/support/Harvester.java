@@ -1356,13 +1356,15 @@ public class Harvester implements Runnable {
                             urlContent = FileManager.readAsUTF8(currentValue, 5);
                         } catch (org.apache.jena.shared.WrappedIOException ex) {
                             //Retry with CP1252
-                            logger.warn("Cannot read {} using UTF-8 due to [{}], retrying with CP1252", currentValue,
-                                    ex.getLocalizedMessage());
+                            if (logger.isDebugEnabled()) {
+                                logger.warn("Cannot read {} using UTF-8 due to [{}], retrying with CP1252", currentValue,
+                                        ex.getLocalizedMessage());
+                            }
                             urlContent = FileManager.readAsCP1252(currentValue);
                         }
                         jsonMap.put("textContent", urlContent);
                     } catch (Exception e) {
-                        logger.error("Cannot read content from {} {}", currentValue, e.getLocalizedMessage());
+                        logger.error("Cannot read content from {} due to {}", currentValue, e.getLocalizedMessage());
                         e.printStackTrace();
                     }
                 }
