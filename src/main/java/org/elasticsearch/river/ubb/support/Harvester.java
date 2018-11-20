@@ -1357,8 +1357,8 @@ public class Harvester implements Runnable {
                         } catch (org.apache.jena.shared.WrappedIOException ex) {
                             //Retry with CP1252
                             if (logger.isDebugEnabled()) {
-                                logger.warn("Cannot read {} using UTF-8 due to [{}], retrying with CP1252", currentValue,
-                                        ex.getLocalizedMessage());
+                                logger.warn("Cannot read {} using UTF-8 due to [{}], retrying with CP1252",
+                                        currentValue, ex.getLocalizedMessage());
                             }
                             urlContent = FileManager.readAsCP1252(currentValue);
                         }
