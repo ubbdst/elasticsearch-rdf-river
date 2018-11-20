@@ -7,7 +7,6 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 
 import java.io.*;
-import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.Objects;
 
@@ -80,17 +79,25 @@ public class FileManager {
     }
 
     /**
+     * Opens stream for a given file or url
+     */
+    public static InputStream open(String fileOrUri) throws FileNotFoundException {
+        InputStream in = org.apache.jena.util.FileManager.get().open(fileOrUri);
+        if (Objects.isNull(in)) {
+            throw new FileNotFoundException("File Not Found: " + fileOrUri);
+        }
+        return in;
+    }
+
+    /**
      * Reads whole file as CP1252 (due to issue from OCR scan)
      *
      * @param fileOrUri file name or URI
      * @return returns a string representation of the file contents.
      */
-    public static String readAsCP1252(String fileOrUri) throws IOException {
-        InputStream in = org.apache.jena.util.FileManager.get().open(fileOrUri);
-        if(Objects.isNull(in)) {
-            throw new FileNotFoundException("File Not Found: " + fileOrUri);
-        }
-        try (Reader r = new InputStreamReader(in, CP_1252); StringWriter sw = new StringWriter(1024)) {
+    public static String readAsCP1252(String fileOrUri) {
+        try (Reader r = new InputStreamReader(open(fileOrUri), CP_1252);
+             StringWriter sw = new StringWriter(1024)) {
             char buff[] = new char[1024];
             while (true) {
                 int l = r.read(buff);

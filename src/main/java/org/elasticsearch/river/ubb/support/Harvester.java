@@ -1192,8 +1192,7 @@ public class Harvester implements Runnable {
         }
         if (Strings.hasText(queryPath)) {//harvesting from file path
             logger.info("Harvesting from TDB [{}] using query path [{}] for river [{}] " +
-                            "on index [{}] and type [{}]", tdbLocation, queryPath,
-                    riverName, indexName, typeName);
+                            "on index [{}] and type [{}]", tdbLocation, queryPath, riverName, indexName, typeName);
             Query queryFromPath = null;
             try {
                 queryFromPath = QueryFactory.read(queryPath);
@@ -1292,7 +1291,6 @@ public class Harvester implements Runnable {
         List<String> results = new ArrayList<>();
         Set<String> suggestInputs = new HashSet<>();
         Set<String> rdfLanguages = new HashSet<>();
-
         if (addUriForResource) {
             results.add(rs.toString());
             String normalizedProperty = Defaults.DEFAULT_RESOURCE_URI;
@@ -1321,7 +1319,6 @@ public class Harvester implements Runnable {
                 if (currentValue.isEmpty()) {
                     continue;
                 }
-
                 //If we have to generate label sort
                 if (generateSortLabel) {
                     if (node.isLiteral()) {
@@ -1334,11 +1331,10 @@ public class Harvester implements Runnable {
 
                 //Embed one resource to another using the given property
                 if (node.isResource() && property.equals(embedResourceUsingProperty)) {
-                    logger.info("Embedding resource " + node.asResource().getURI() + " to " + rs);
+                    //logger.info("Embedding resource " + node.asResource().getURI() + " to " + rs);
                     Resource eResource = node.asResource();
                     Model eModel = describe(eResource);
                     Set<Property> eProperties = getProperties(eModel.listStatements());
-
                     boolean wasSuggestOn = false;
                     if (isAutoSuggestionEnabled) {//switch off suggestion for embedded document
                         wasSuggestOn = true;
@@ -1354,13 +1350,14 @@ public class Harvester implements Runnable {
                 // Read and index contents of a given URL
                 if (Strings.hasText(textField) && property.equals(textField)) {
                     try {
-                        logger.info("Reading URL content from: " + currentValue);
+                        //logger.info("Reading URL content from: " + currentValue);
                         String urlContent;
                         try {
                             urlContent = FileManager.readAsUTF8(currentValue, 5);
                         } catch (org.apache.jena.shared.WrappedIOException ex) {
                             //Retry with CP1252
-                            logger.warn("Cannot read with UTF8, retrying with CP252", currentValue);
+                            logger.warn("Cannot read {} using UTF-8 due to [{}], retrying with CP1252", currentValue,
+                                    ex.getLocalizedMessage());
                             urlContent = FileManager.readAsCP1252(currentValue);
                         }
                         jsonMap.put("textContent", urlContent);
@@ -1388,14 +1385,12 @@ public class Harvester implements Runnable {
                             && !currentValue.equalsIgnoreCase("false")) {
 
                         suggestValue = currentValue;
-
                         if (removeIllegalCharsForSuggestion) {
                             //Replace possible illegal characters with empty space.
                             //These characters have special meaning in Elasticsearch,
                             //so we remove them in a suggestion list.
                             suggestValue = RiverUtils.removeSpecialCharsForAutoSuggest(suggestValue);
                         }
-
                         //Add value to the list
                         if (Strings.hasText(suggestValue) && Character.isLetter(suggestValue.charAt(0))) {
                             suggestInputs.add(suggestValue.toLowerCase(Locale.ROOT));
