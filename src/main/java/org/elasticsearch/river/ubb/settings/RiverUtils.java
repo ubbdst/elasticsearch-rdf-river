@@ -1,6 +1,12 @@
 package org.elasticsearch.river.ubb.settings;
 
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.lang3.ObjectUtils;
+import org.elasticsearch.common.lang3.StringUtils;
+import org.apache.jena.rdf.model.Resource;
+
 import java.text.DecimalFormat;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 public class RiverUtils {
@@ -126,4 +132,24 @@ public class RiverUtils {
         invalidXMLChars.matcher(text).replaceAll("");
         return text;
     }
+
+    /**
+     * Replaces one resource URI based on the list of comma separated fragments
+     * @param resourceUri  a resource URI to be replaced
+     * @param fragmentsCommaSeparated a list of two comma separated fragments. If more than 2 fragments are found,
+     *                                only the first 2 will be taken.
+     */
+    public static String replaceResourceURI(String resourceUri, String fragmentsCommaSeparated) {
+        System.out.println("Subject URI " + resourceUri + " " + f)
+        if(Strings.hasText(resourceUri)) {
+            String[] frags = Strings.splitStringByCommaToArray(fragmentsCommaSeparated);
+            if (frags != null && frags.length > 1) { // only if we have something to replace
+                return Strings.replace(resourceUri,
+                        StringUtils.deleteWhitespace(frags[0]),
+                        StringUtils.deleteWhitespace(frags[1]));
+            }
+        }
+        return resourceUri;
+    }
+
 }

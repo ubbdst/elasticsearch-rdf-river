@@ -32,6 +32,7 @@ import java.util.*;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.river.ubb.settings.RiverUtils.getTimeString;
+import static org.elasticsearch.river.ubb.settings.RiverUtils.replaceResourceURI;
 
 /**
  * @author European Environment Agency (EEA) <br>
@@ -51,6 +52,7 @@ public class Harvester implements Runnable {
     private String tdbLocation;
     private List<String> rdfQueries;
     private List<String> rdfPaths;
+    private String subjectURIFragments;
     private QueryType rdfQueryType;
     private List<String> rdfPropList;
     private Boolean rdfListType = false;
@@ -191,6 +193,12 @@ public class Harvester implements Runnable {
         if (Strings.hasText(pathToSparqlQuery)) {
             queryPath = pathToSparqlQuery.trim();
         }
+        return this;
+    }
+
+
+    public Harvester replaceSubjectURI(String fragments) {
+        this.subjectURIFragments = fragments;
         return this;
     }
 
@@ -1273,7 +1281,7 @@ public class Harvester implements Runnable {
         Set<String> suggestInputs = new HashSet<>();
 
         if (addUriForResource) {
-            results.add(rs.toString());
+            results.add(replaceResourceURI(rs.toString(), subjectURIFragments));
             String normalizedProperty = Defaults.DEFAULT_RESOURCE_URI;
 
             // If a property is defined in the normProp list, then use
@@ -1315,8 +1323,9 @@ public class Harvester implements Runnable {
                 // Read and index contents of a given URL
                 if(Strings.hasText(textField) && property.equals(textField)) {
                     try {
-                        logger.info("Reading file content from: " + currentValue);
-
+                        if(logger.isDebugEnabled()) {
+                            logger.info("Reading file content from: " + currentValue);
+                        }
                         // Build output field based on textField
                         // If the input field is normalized, use also the normalized form for
                         // output field
@@ -1480,13 +1489,14 @@ public class Harvester implements Runnable {
         while (rsiter.hasNext()) {
             Resource rs = rsiter.nextResource();
             Map<String, Object> jsonMap = getJsonMap(rs, properties, model);
+            String subjectURI = replaceResourceURI(rs.toString(), subjectURIFragments);
 
             //If updateDocuments is set to true, then prepare to update this document
             if (updateDocuments) {
-                prepareUpdateDocument(bulkRequest, convertSingleValueListToString(jsonMap), rs.toString());
+                prepareUpdateDocument(bulkRequest, convertSingleValueListToString(jsonMap), subjectURI);
             } else {
                 //Otherwise, prepare to index this document
-                prepareIndexDocument(bulkRequest, convertSingleValueListToString(jsonMap), rs.toString());
+                prepareIndexDocument(bulkRequest, convertSingleValueListToString(jsonMap), subjectURI);
             }
 
             bulkLength++;
@@ -1833,6 +1843,4 @@ public class Harvester implements Runnable {
         CONSTRUCT,
         DESCRIBE
     }
-
-
 }

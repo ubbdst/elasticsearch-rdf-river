@@ -109,6 +109,8 @@ public class RDFRiver extends AbstractRiverComponent implements River {
                         rdfSettings.get("tdbLocation"), ""))
                 .rdfQueryPath(XContentMapValues.nodeStringValue(
                         rdfSettings.get("queryPath"), ""))
+                .replaceSubjectURI(XContentMapValues.nodeStringValue(
+                        rdfSettings.get("replaceSubjectURI"), ""))
                 .rdfNumberOfBulkActions(XContentMapValues.nodeLongValue(
                         rdfSettings.get("bulkActions"),
                         Defaults.DEFAULT_NUMBER_OF_BULK_ACTIONS))
