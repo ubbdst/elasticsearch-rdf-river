@@ -109,6 +109,8 @@ public class RDFRiver extends AbstractRiverComponent implements River {
                         rdfSettings.get("tdbLocation"), ""))
                 .rdfQueryPath(XContentMapValues.nodeStringValue(
                         rdfSettings.get("queryPath"), ""))
+                .replaceResourceURI(XContentMapValues.nodeStringValue(
+                        rdfSettings.get("replaceResourceURI"), ""))
                 .rdfNumberOfBulkActions(XContentMapValues.nodeLongValue(
                         rdfSettings.get("bulkActions"),
                         Defaults.DEFAULT_NUMBER_OF_BULK_ACTIONS))
@@ -192,6 +194,13 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         }
         if (rdfSettings.containsKey("whiteMap")) {
             harvester.rdfWhiteMap(getStrObjMapFromSettings(rdfSettings, "whiteMap"));
+        }
+        if (rdfSettings.containsKey("indexTextFrom")) {
+            harvester.textField(XContentMapValues.nodeStringValue(rdfSettings.get("indexTextFrom"), ""));
+        }
+        if (rdfSettings.containsKey("embedResourceUsingProperty")) {
+            harvester.embedResource(XContentMapValues.nodeStringValue(
+                    rdfSettings.get("embedResourceUsingProperty"), ""));
         }
         if (settings.settings().containsKey("index")) {
             Map<String, Object> indexSettings = extractSettings(settings, "index");
