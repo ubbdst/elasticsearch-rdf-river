@@ -20,6 +20,7 @@ import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.lang3.StringUtils;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.river.ubb.settings.Defaults;
@@ -32,7 +33,6 @@ import java.util.*;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.river.ubb.settings.RiverUtils.getTimeString;
-import static org.elasticsearch.river.ubb.settings.RiverUtils.replaceResourceURI;
 
 /**
  * @author European Environment Agency (EEA) <br>
@@ -52,7 +52,7 @@ public class Harvester implements Runnable {
     private String tdbLocation;
     private List<String> rdfQueries;
     private List<String> rdfPaths;
-    private String subjectURIFragments;
+    private String resourceURIFragments;
     private QueryType rdfQueryType;
     private List<String> rdfPropList;
     private Boolean rdfListType = false;
@@ -197,8 +197,8 @@ public class Harvester implements Runnable {
     }
 
 
-    public Harvester replaceSubjectURI(String fragments) {
-        this.subjectURIFragments = fragments;
+    public Harvester replaceResourceURI(String fragments) {
+        this.resourceURIFragments = fragments;
         return this;
     }
 
@@ -320,15 +320,9 @@ public class Harvester implements Runnable {
      * parameter set
      */
     public Harvester rdfLanguage(String rdfLanguage) {
-        language = rdfLanguage;
+        language = StringUtils.deleteWhitespace(rdfLanguage);
         if (!language.isEmpty()) {
             addLanguage = true;
-            //Quote the language str
-            /**
-             * if(!language.startsWith("\"")) language = "\"" +
-             * this.language + "\"";
-             *
-             */
         }
         return this;
     }
@@ -1075,8 +1069,7 @@ public class Harvester implements Runnable {
             try {
                 Model model = getModel(qexec);
                 addModelToElasticsearch(model, client.prepareBulk());
-            }
-            catch (QueryExceptionHTTP httpe) {
+            } catch (QueryExceptionHTTP httpe) {
                 if (httpe.getResponseCode() >= 500) {
                     retry = true;
                     countRetry++;
@@ -1089,8 +1082,7 @@ public class Harvester implements Runnable {
                     //if we have reached maximum retries, exit
                     break;
                 }
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 logger.error("Exception occurred while harvesting with details:  [{}] ",
                         e.getLocalizedMessage());
                 e.printStackTrace();
@@ -1136,7 +1128,7 @@ public class Harvester implements Runnable {
                     logger.error("Could not parse [{}]. Please provide a relevant query. {}", rdfQuery, qpe);
                     continue;
                 }
-                try (QueryExecution qexec = QueryExecutionFactory.sparqlService(rdfEndpoint, query);) {
+                try (QueryExecution qexec = QueryExecutionFactory.sparqlService(rdfEndpoint, query)) {
                     harvest(qexec);
                 } catch (Exception e) {
                     logger.error("Exception [{}] occurred while harvesting", e.getLocalizedMessage());
@@ -1178,7 +1170,7 @@ public class Harvester implements Runnable {
         //Harvesting from file path
         if (Strings.hasText(queryPath)) {
             logger.info("Harvesting from TDB [{}] using query path [{}] for river [{}] " +
-                             "on index [{}] and type [{}]", tdbLocation, queryPath,
+                            "on index [{}] and type [{}]", tdbLocation, queryPath,
                     riverName, indexName, typeName);
             Query queryFromPath = null;
             try {
@@ -1198,7 +1190,7 @@ public class Harvester implements Runnable {
     /**
      * Creates or connects to the TDB-backend
      *
-     * @param  path location to a TDB dataset
+     * @param path location to a TDB dataset
      * @return dataset or null if cannot create or connect
      */
     private Dataset createOrConnect(String path) {
@@ -1206,12 +1198,10 @@ public class Harvester implements Runnable {
         try {
             //Create or connect to the TDB-backend
             dataset = TDBFactory.createDataset(path);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             logger.error("Cannot create or connect to dataset for path: [{}]", path);
             throw e;
-        }
-        finally {
+        } finally {
             // Store this TDB dataset such that we can use it afterwards
             // e.g for getting labels
             setTDBDataset(dataset);
@@ -1281,7 +1271,7 @@ public class Harvester implements Runnable {
         Set<String> suggestInputs = new HashSet<>();
 
         if (addUriForResource) {
-            results.add(replaceResourceURI(rs.toString(), subjectURIFragments));
+            results.add(RiverUtils.replaceResourceURI(rs.toString(), resourceURIFragments));
             String normalizedProperty = Defaults.DEFAULT_RESOURCE_URI;
 
             // If a property is defined in the normProp list, then use
@@ -1321,9 +1311,9 @@ public class Harvester implements Runnable {
                 }
 
                 // Read and index contents of a given URL
-                if(Strings.hasText(textField) && property.equals(textField)) {
+                if (Strings.hasText(textField) && property.equals(textField)) {
                     try {
-                        if(logger.isDebugEnabled()) {
+                        if (logger.isDebugEnabled()) {
                             logger.info("Reading file content from: " + currentValue);
                         }
                         // Build output field based on textField
@@ -1334,8 +1324,7 @@ public class Harvester implements Runnable {
                             outField = normalizeProp.get(textField);
                         }
                         jsonMap.put(outField.concat("Content"), FileManager.read(currentValue, 5));
-                    }
-                    catch (Exception e) {
+                    } catch (Exception e) {
                         logger.error("Cannot read content from {}", currentValue);
                         e.printStackTrace();
                     }
@@ -1489,7 +1478,7 @@ public class Harvester implements Runnable {
         while (rsiter.hasNext()) {
             Resource rs = rsiter.nextResource();
             Map<String, Object> jsonMap = getJsonMap(rs, properties, model);
-            String subjectURI = replaceResourceURI(rs.toString(), subjectURIFragments);
+            String subjectURI = RiverUtils.replaceResourceURI(rs.toString(), resourceURIFragments);
 
             //If updateDocuments is set to true, then prepare to update this document
             if (updateDocuments) {
@@ -1686,7 +1675,7 @@ public class Harvester implements Runnable {
                     if (tdbDataset != null) {
                         result = getLabelForUriFromTDB(result, tdbDataset);
                     } else {//Fall back
-                        if(!rdfEndpoint.isEmpty()) {
+                        if (!rdfEndpoint.isEmpty()) {
                             result = getLabelForUriFromEndpoint(result);
                         }
                     }
@@ -1821,7 +1810,7 @@ public class Harvester implements Runnable {
 
         //This is too specific to the University of Bergen Library´s Ontology.
         //In the future, you might want to let the default language be automatically picked up.
-        String filter = "FILTER (langMatches(lang(?label), \"\") || langMatches(lang(?label), \"no\"))  ";
+        String filter = "FILTER (langMatches(lang(?label), \"\") || langMatches(lang(?label), \"" + language + "\")) ";
 
         //Iterate over the list and build up the options.
         for (String property : uriDescriptionList) {

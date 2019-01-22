@@ -1,12 +1,9 @@
 package org.elasticsearch.river.ubb.settings;
 
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.lang3.ObjectUtils;
 import org.elasticsearch.common.lang3.StringUtils;
-import org.apache.jena.rdf.model.Resource;
 
 import java.text.DecimalFormat;
-import java.util.Objects;
 import java.util.regex.Pattern;
 
 public class RiverUtils {
@@ -92,16 +89,16 @@ public class RiverUtils {
      */
     public static String getTimeString(long timeInMilliSeconds) {
         //Time in seconds
-        double timeInSeconds = timeInMilliSeconds/1000.0;
+        double timeInSeconds = timeInMilliSeconds / 1000.0;
         //Format to 2 decimal places
         DecimalFormat df = new DecimalFormat(".##");
         //In minutes
         if (timeInSeconds >= 60 && timeInSeconds < 60 * 60) {
-            return df.format(timeInSeconds/60 )+ " minutes";
+            return df.format(timeInSeconds / 60) + " minutes";
         }
         //In hours
         if (timeInSeconds >= 60 * 60 && timeInSeconds < 24 * 3600) {
-            return df.format(timeInSeconds/3600) + " hours";
+            return df.format(timeInSeconds / 3600) + " hours";
         }
         //default unit
         return df.format(timeInSeconds) + " seconds";
@@ -135,15 +132,15 @@ public class RiverUtils {
 
     /**
      * Replaces one resource URI based on the list of comma separated fragments
-     * @param resourceUri  a resource URI to be replaced
+     *
+     * @param resourceUri             a resource URI to be replaced
      * @param fragmentsCommaSeparated a list of two comma separated fragments. If more than 2 fragments are found,
-     *                                only the first 2 will be taken.
+     *                                only the first 2 will be considered.
      */
     public static String replaceResourceURI(String resourceUri, String fragmentsCommaSeparated) {
-        System.out.println("Subject URI " + resourceUri + " " + f)
-        if(Strings.hasText(resourceUri)) {
+        if (Strings.hasText(resourceUri)) {
             String[] frags = Strings.splitStringByCommaToArray(fragmentsCommaSeparated);
-            if (frags != null && frags.length > 1) { // only if we have something to replace
+            if (frags != null && frags.length >= 2) { // only if we have something to replace
                 return Strings.replace(resourceUri,
                         StringUtils.deleteWhitespace(frags[0]),
                         StringUtils.deleteWhitespace(frags[1]));
