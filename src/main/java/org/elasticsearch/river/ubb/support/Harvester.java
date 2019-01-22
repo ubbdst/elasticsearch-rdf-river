@@ -85,6 +85,7 @@ public class Harvester implements Runnable {
     private String typeName;
     private String riverName;
     private String textField;
+    private String embedResourceUsingProperty;
     private Boolean closed = false;
     private HashMap<String, String> uriLabelCache;
     private Dataset tdbDataset = null;
@@ -102,8 +103,8 @@ public class Harvester implements Runnable {
      */
     public Harvester rdfUrl(String url) {
         url = url.substring(1, url.length() - 1);
-        uriLabelCache = new HashMap<String, String>();
-        rdfUrls = new HashSet<String>(Arrays.asList(url.split(",")));
+        uriLabelCache = new HashMap<>();
+        rdfUrls = new HashSet<>(Arrays.asList(url.split(",")));
         return this;
     }
 
@@ -184,9 +185,20 @@ public class Harvester implements Runnable {
     }
 
     /**
+     * Embed resource to another using this property
+     *
+     * @param embedProperty a property used to embed a resource
+     * @return the same {@link Harvester} with the embedResourceUsingProperty parameter set
+     */
+    public Harvester embedResource(String embedProperty) {
+        this.embedResourceUsingProperty = embedProperty;
+        return this;
+    }
+
+    /**
      * Sets the {@link Harvester}'s {@link #rdfQueryPath(String)} parameter
      *
-     * @param pathToSparqlQuery a path where SPARQL query can be read
+     * @param pathToSparqlQuery a path where SPARQL query can be readAsUTF8
      * @return the same {@link Harvester} with the {@link #rdfQueryPath(String)} set
      */
     public Harvester rdfQueryPath(String pathToSparqlQuery) {
@@ -233,7 +245,7 @@ public class Harvester implements Runnable {
     public Harvester rdfPropList(List<String> list) {
         if (!list.isEmpty()) {
             hasList = true;
-            rdfPropList = new ArrayList<String>(list);
+            rdfPropList = new ArrayList<>(list);
         }
         return this;
     }
@@ -636,11 +648,9 @@ public class Harvester implements Runnable {
         } else {
             success = runSync();
         }
-
         if (success) {
             setLastUpdate(new Date(currentTime));
         }
-
         //Delete river if specified by a user
         if (deleteRiverMappingAfterCreation) {
             try {
@@ -1139,13 +1149,29 @@ public class Harvester implements Runnable {
     }
 
     /**
+     * Executes describe query for a given resource against a TDB dataset or endpoint
+     */
+    private Model describe(Resource resource) {
+        String describeQuery = "DESCRIBE <" + resource.toString() + ">";
+
+        if (tdbDataset != null) { //Try TDB
+            try (QueryExecution qE = QueryExecutionFactory.create(describeQuery, tdbDataset)) {
+                return getDescribeModel(qE);
+            }
+        } else if (Strings.hasText(rdfEndpoint)) { //Try endpoint
+            try (QueryExecution qE = QueryExecutionFactory.sparqlService(rdfEndpoint, describeQuery)) {
+                return getDescribeModel(qE);
+            }
+        }
+        return null;  //if all are not available, return null
+    }
+
+    /**
      * Harvest from TDB using queries specified from {@link #rdfQueries
      * and/or path specified in {@link #queryPath}.
      */
     private void harvestFromTDB() {
-
-        //Harvesting from a list of RDF Queries
-        if (!rdfQueries.isEmpty()) {
+        if (!rdfQueries.isEmpty()) { //Harvesting from a list of RDF Queries
             Query queryFromList;
             for (String rdfQuery : rdfQueries) {
                 logger.info("Harvesting from TDB store [{}] for river [{}] on index [{}] and type [{}]",
@@ -1166,12 +1192,9 @@ public class Harvester implements Runnable {
 
             }
         }
-
-        //Harvesting from file path
-        if (Strings.hasText(queryPath)) {
+        if (Strings.hasText(queryPath)) {//harvesting from file path
             logger.info("Harvesting from TDB [{}] using query path [{}] for river [{}] " +
-                            "on index [{}] and type [{}]", tdbLocation, queryPath,
-                    riverName, indexName, typeName);
+                            "on index [{}] and type [{}]", tdbLocation, queryPath, riverName, indexName, typeName);
             Query queryFromPath = null;
             try {
                 queryFromPath = QueryFactory.read(queryPath);
@@ -1269,7 +1292,7 @@ public class Harvester implements Runnable {
         Map<String, Object> jsonMap = new HashMap<>();
         List<String> results = new ArrayList<>();
         Set<String> suggestInputs = new HashSet<>();
-
+        Set<String> rdfLanguages = new HashSet<>();
         if (addUriForResource) {
             results.add(RiverUtils.replaceResourceURI(rs.toString(), resourceURIFragments));
             String normalizedProperty = Defaults.DEFAULT_RESOURCE_URI;
@@ -1281,7 +1304,6 @@ public class Harvester implements Runnable {
             }
             jsonMap.put(normalizedProperty, results);
         }
-        Set<String> rdfLanguages = new HashSet<>();
         for (Property prop : properties) {
             NodeIterator niter = model.listObjectsOfProperty(rs, prop);
             String property = prop.toString();
@@ -1299,7 +1321,6 @@ public class Harvester implements Runnable {
                 if (currentValue.isEmpty()) {
                     continue;
                 }
-
                 //If we have to generate label sort
                 if (generateSortLabel) {
                     if (node.isLiteral()) {
@@ -1310,22 +1331,46 @@ public class Harvester implements Runnable {
                     }
                 }
 
+                //Embed one resource to another using the given property
+                if (node.isResource() && property.equals(embedResourceUsingProperty)) {
+                    if(logger.isDebugEnabled()) {
+                        logger.info("Embedding resource " + node.asResource().getURI() + " to " + rs);
+                    }
+                    Resource eResource = node.asResource();
+                    Model eModel = describe(eResource);
+                    Set<Property> eProperties = getProperties(eModel.listStatements());
+                    boolean wasSuggestOn = false;
+                    if (isAutoSuggestionEnabled) {//switch off suggestion for embedded document
+                        wasSuggestOn = true;
+                        isAutoSuggestionEnabled = false;
+                    }
+                    //Recursive call to embed another resource
+                    jsonMap.put("_embedded", convertSingleValueListToString(getJsonMap(eResource, eProperties, eModel)));
+                    if (wasSuggestOn) {//Turn back on the suggestion
+                        isAutoSuggestionEnabled = true;
+                    }
+                }
+
                 // Read and index contents of a given URL
                 if (Strings.hasText(textField) && property.equals(textField)) {
                     try {
-                        if (logger.isDebugEnabled()) {
-                            logger.info("Reading file content from: " + currentValue);
+                        if(logger.isDebugEnabled()) {
+                            logger.info("Reading URL content from: " + currentValue);
                         }
-                        // Build output field based on textField
-                        // If the input field is normalized, use also the normalized form for
-                        // output field
-                        String outField = textField;
-                        if (willNormalizeProp && normalizeProp.containsKey(textField)) {
-                            outField = normalizeProp.get(textField);
+                        String urlContent;
+                        try {
+                            urlContent = FileManager.readAsUTF8(currentValue, 5);
+                        } catch (org.apache.jena.shared.WrappedIOException ex) {
+                            //Retry with CP1252
+                            if (logger.isDebugEnabled()) {
+                                logger.warn("Cannot read {} using UTF-8 due to [{}], retrying with CP1252",
+                                        currentValue, ex.getLocalizedMessage());
+                            }
+                            urlContent = FileManager.readAsCP1252(currentValue);
                         }
-                        jsonMap.put(outField.concat("Content"), FileManager.read(currentValue, 5));
+                        jsonMap.put("textContent", urlContent);
                     } catch (Exception e) {
-                        logger.error("Cannot read content from {}", currentValue);
+                        logger.error("Cannot read content from {} due to {}", currentValue, e.getLocalizedMessage());
                         e.printStackTrace();
                     }
                 }
@@ -1338,6 +1383,7 @@ public class Harvester implements Runnable {
                         }
                     }
                 }
+
                 //Add values to suggest field for auto suggestion.
                 if (isAutoSuggestionEnabled) {
                     //Filter the value, such that it should not contain weird characters
@@ -1347,17 +1393,14 @@ public class Harvester implements Runnable {
                             && !currentValue.equalsIgnoreCase("false")) {
 
                         suggestValue = currentValue;
-
                         if (removeIllegalCharsForSuggestion) {
                             //Replace possible illegal characters with empty space.
                             //These characters have special meaning in Elasticsearch,
                             //so we remove them in a suggestion list.
                             suggestValue = RiverUtils.removeSpecialCharsForAutoSuggest(suggestValue);
                         }
-
                         //Add value to the list
-                        if (Strings.hasText(suggestValue)
-                                && Character.isLetter(suggestValue.charAt(0))) {
+                        if (Strings.hasText(suggestValue) && Character.isLetter(suggestValue.charAt(0))) {
                             suggestInputs.add(suggestValue.toLowerCase(Locale.ROOT));
                         }
                     }
@@ -1392,12 +1435,11 @@ public class Harvester implements Runnable {
             //Normalize properties
             if (willNormalizeProp && normalizeProp.containsKey(property)) {
                 property = normalizeProp.get(property);
-                if (jsonMap.containsKey(property)) {
-                    //Needs some testing here.
-                    if (jsonMap.get(property) instanceof ArrayList) {
-                        List<String> values = (ArrayList<String>) jsonMap.get(property);
-                        values.addAll(results);
-                        jsonMap.put(property, values);
+                if (jsonMap.containsKey(property)) {// if we have more than one properties
+                    Object values = jsonMap.get(property);
+                    if (values instanceof List) {
+                        results.addAll((List) values);
+                        jsonMap.put(property, results);
                     }
                 } else {
                     jsonMap.put(property, results);
@@ -1416,6 +1458,7 @@ public class Harvester implements Runnable {
                 jsonMap.put("language", langs.size() == 1 ? langs.get(0) : langs);
             }
         }
+
         if (willNormalizeMissing) {
             for (Map.Entry<String, String> it : normalizeMissing.entrySet()) {
                 if (!jsonMap.containsKey(it.getKey())) {
@@ -1425,7 +1468,8 @@ public class Harvester implements Runnable {
                 }
             }
         }
-        //Put suggest filed in every document
+
+        //Insert suggest filed in every document
         if (suggestInputs.size() > 0) {
             Map<String, Object> suggestMap = new HashMap<>();
             suggestMap.put(Defaults.SUGGESTION_INPUT_FIELD, suggestInputs);
@@ -1434,6 +1478,31 @@ public class Harvester implements Runnable {
 
         return jsonMap;
     }
+
+
+    /**
+     * Gets all properties that match our criteria
+     *
+     * @param iter statement iterator
+     * @return set of properties
+     */
+    private Set<Property> getProperties(StmtIterator iter) {
+        Set<Property> properties = new HashSet<>();
+        while (iter.hasNext()) {
+            Statement st = iter.nextStatement();
+            Property prop = st.getPredicate();
+            String property = prop.toString();
+
+            if (!hasList
+                    || (rdfListType && rdfPropList.contains(property))
+                    || (!rdfListType && !rdfPropList.contains(property))
+                    || (willNormalizeProp && normalizeProp.containsKey(property))) {
+                properties.add(prop);
+            }
+        }
+        return properties;
+    }
+
 
     /**
      * Index or update all the resources in a Jena Model to ES Note: Update
@@ -1447,7 +1516,6 @@ public class Harvester implements Runnable {
     private void addModelToElasticsearch(Model model, BulkRequestBuilder bulkRequest) {
         logger.info("Indexing into Elasticsearch for river [{}] on index [{}] and type [{}]",
                 riverName, indexName, typeName);
-
         //Abort if model is empty
         if (Objects.isNull(model) || model.isEmpty()) {
             logger.warn("Encountered empty model for river [{}]. Aborting ...", riverName);
@@ -1455,28 +1523,10 @@ public class Harvester implements Runnable {
         }
         long startTime = System.currentTimeMillis();
         long bulkLength = 0;
-        HashSet<Property> properties = new HashSet<>();
-
-        StmtIterator iter = model.listStatements();
-        while (iter.hasNext()) {
-            Statement st = iter.nextStatement();
-            Property prop = st.getPredicate();
-            String property = prop.toString();
-
-            if (!hasList
-                    || (rdfListType && rdfPropList.contains(property))
-                    || (!rdfListType && !rdfPropList.contains(property))
-                    || (willNormalizeProp && normalizeProp.containsKey(property))) {
-                properties.add(prop);
-            }
-            //Print out the property that is ignored.
-            //else {logger.info("Ignoring Property: " + prop);}
-        }
-
-        ResIterator rsiter = model.listSubjects();
-
-        while (rsiter.hasNext()) {
-            Resource rs = rsiter.nextResource();
+        Set<Property> properties = getProperties(model.listStatements());
+        ResIterator resIterator = model.listSubjects();
+        while (resIterator.hasNext()) {
+            Resource rs = resIterator.nextResource();
             Map<String, Object> jsonMap = getJsonMap(rs, properties, model);
             String subjectURI = RiverUtils.replaceResourceURI(rs.toString(), resourceURIFragments);
 
@@ -1489,32 +1539,25 @@ public class Harvester implements Runnable {
             }
 
             bulkLength++;
-
             // We want to execute the bulk for every numberOfBulkActions requests
             if (bulkLength % numberOfBulkActions == 0) {
-
                 BulkResponse bulkResponse = bulkRequest.execute().actionGet();
-                // After executing, clear the BulkRequestBuilder.
-                bulkRequest = client.prepareBulk();
-
+                bulkRequest = client.prepareBulk();// After executing, clear the BulkRequestBuilder.
                 if (bulkResponse.hasFailures()) {
+                    // Handle failure by iterating through each bulk response item
                     processBulkResponseFailure(bulkResponse);
                 }
             }
         }
-
         // Execute remaining requests
         if (bulkRequest.numberOfActions() > 0) {
             BulkResponse response = bulkRequest.execute().actionGet();
-            // Handle failure by iterating through each bulk response item
             if (response.hasFailures()) {
                 processBulkResponseFailure(response);
             }
-
         }
 
         long finishTime = System.currentTimeMillis();
-
         //Show time taken to perform the action
         String actionPerformed = updateDocuments ? "updated" : "indexed";
         logger.info("\n-------------------------------------------"
@@ -1524,7 +1567,7 @@ public class Harvester implements Runnable {
                 + "\n\tIndex: " + indexName
                 + "\n\tType: " + typeName
                 + "\n\tTime to index: " + getTimeString(finishTime - startTime)
-                + "\n\tTotal time: " + getTimeString(finishTime - getTimeStarted())
+                + "\n\tTotal time (query + index): " + getTimeString(finishTime - getTimeStarted())
                 + "\n-------------------------------------------");
     }
 
@@ -1609,8 +1652,8 @@ public class Harvester implements Runnable {
      */
     private Map<String, Object> convertSingleValueListToString(Map<String, Object> map) {
         for (Map.Entry<String, Object> entry : map.entrySet()) {
-            if (entry.getValue() instanceof java.util.ArrayList) {
-                ArrayList value = (ArrayList) entry.getValue();
+            if (entry.getValue() instanceof List) {
+                List value = (List) entry.getValue();
                 if (value.size() == 1) {
                     map.put(entry.getKey(), value.get(0));
                 }

@@ -68,7 +68,7 @@ public class JsonFileLoader extends JsonSettingsLoader {
             if (content.trim().startsWith("{") && content.trim().endsWith("}")) {
                 return content;
             }
-            return FileManager.read(content, 20);
+            return FileManager.readAsUTF8(content, 20);
         }
         return "";
     }

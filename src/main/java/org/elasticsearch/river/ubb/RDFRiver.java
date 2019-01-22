@@ -198,6 +198,10 @@ public class RDFRiver extends AbstractRiverComponent implements River {
         if (rdfSettings.containsKey("indexTextFrom")) {
             harvester.textField(XContentMapValues.nodeStringValue(rdfSettings.get("indexTextFrom"), ""));
         }
+        if (rdfSettings.containsKey("embedResourceUsingProperty")) {
+            harvester.embedResource(XContentMapValues.nodeStringValue(
+                    rdfSettings.get("embedResourceUsingProperty"), ""));
+        }
         if (settings.settings().containsKey("index")) {
             Map<String, Object> indexSettings = extractSettings(settings, "index");
             harvester.index(XContentMapValues.nodeStringValue(indexSettings.get("index"),
