@@ -58,6 +58,7 @@ public class Harvester implements Runnable {
     private Boolean rdfListType = false;
     private Boolean hasList = false;
     private boolean isAutoSuggestionEnabled = true;
+    private boolean lowerCaseSuggestInput = true;
     private Boolean removeIllegalCharsForSuggestion = true;
     private Map<String, String> normalizeProp = new HashMap<>();
     private Map<String, String> normalizeObj;
@@ -258,6 +259,14 @@ public class Harvester implements Runnable {
             isAutoSuggestionEnabled = true;
             suggestPropList = new HashSet<>(suggestProperties);
         }
+        return this;
+    }
+
+    /**
+     * Lower case suggest input
+     **/
+    public Harvester lowerCaseSuggestInput(boolean flag) {
+        this.lowerCaseSuggestInput = flag;
         return this;
     }
 
@@ -1401,7 +1410,8 @@ public class Harvester implements Runnable {
                         }
                         //Add value to the list
                         if (Strings.hasText(suggestValue) && Character.isLetter(suggestValue.charAt(0))) {
-                            suggestInputs.add(suggestValue.toLowerCase(Locale.ROOT));
+                            suggestInputs.add(this.lowerCaseSuggestInput ?
+                                    suggestValue.toLowerCase(Locale.ROOT) : suggestValue);
                         }
                     }
                 }

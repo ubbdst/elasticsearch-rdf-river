@@ -135,6 +135,9 @@ public class RDFRiver extends AbstractRiverComponent implements River {
                 .removeIllegalCharsForSuggestion(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("removeIllegalCharsForSuggestion"),
                         true))
+                .lowerCaseSuggestInput(XContentMapValues.nodeBooleanValue(
+                        rdfSettings.get("lowerCaseSuggestInput"),
+                        true))
                 .deleteRiverAfterCreation(XContentMapValues.nodeBooleanValue(
                         rdfSettings.get("deleteRiverAfterCreation"), false))
                 .generateSortLabel(XContentMapValues.nodeBooleanValue(
