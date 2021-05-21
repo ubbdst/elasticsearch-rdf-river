@@ -110,5 +110,36 @@ public class FileManager {
             throw new WrappedIOException(ex);
         }
     }
+
+    /**
+     * Reads content from a given url
+     *
+     * @param url a url to fetch url file content from
+     *
+     * @return a file content or the same url if
+     */
+    public static String readUrlContent (String url) {
+        try {
+            if (logger.isDebugEnabled()) {
+                logger.info("Reading URL content from: " + url);
+            }
+            String urlContent;
+            try {
+                urlContent = FileManager.readAsUTF8(url, 5);
+            } catch (org.apache.jena.shared.WrappedIOException ex) {
+                //Retry with CP1252
+                if (logger.isDebugEnabled()) {
+                    logger.warn("Cannot read {} using UTF-8 due to [{}], retrying with CP1252",
+                            url, ex.getLocalizedMessage());
+                }
+                urlContent = FileManager.readAsCP1252(url);
+            }
+            return urlContent;
+        } catch (Exception e) {
+            logger.error("Cannot read content from {} due to {}", url, e.getLocalizedMessage());
+            e.printStackTrace();
+        }
+        return url;
+    }
 }
 

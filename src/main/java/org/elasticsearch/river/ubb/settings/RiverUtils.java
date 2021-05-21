@@ -4,6 +4,8 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.lang3.StringUtils;
 
 import java.text.DecimalFormat;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 public class RiverUtils {
@@ -22,6 +24,7 @@ public class RiverUtils {
     private static final char[] AUTO_COMPLETE_CHARS = {
             ':', '[', ']', '.', '?'
     };
+
 
     /**
      * Removes special characters from the given string
@@ -147,6 +150,36 @@ public class RiverUtils {
             }
         }
         return resourceUri;
+    }
+
+    /**
+     * Constructs JSON map from a given value. It is expected the string is in the form of
+     * key::value;;key::value e.g
+     *
+     * @param currentValue in the form of key::value;;key::value
+     *
+     * @return a innerMap or empty map if
+     */
+    public static Map<String, Object> constructInnerMap(String currentValue) {
+        Map<String, Object> innerMap = new HashMap<>();
+        if (isInnerObject(currentValue)) {
+            String[] tokens = currentValue.split(";;");
+            for (String token : tokens) {
+                if(token.contains("::")) {
+                    String key = token.split("::")[0];
+                    String value = token.split("::")[1];
+                    innerMap.put(key, value);
+                }
+            }
+        }
+        return innerMap;
+    }
+
+    /**
+     * Whether the string should be represented as inner object
+     */
+    public static boolean isInnerObject(String value){
+        return Strings.hasText(value) && value.contains(";;") && value.contains("::");
     }
 
 }
