@@ -51,6 +51,7 @@ public final class Defaults {
     public final static Boolean DEFAULT_SYNC_OLD_DATA = false;
     public final static long DEFAULT_QUERY_LIMIT = 1000;
     public static final String SORT_LABEL_NAME = "labelSort";
+    public  static final String TEXT_CONTENT_FIELD =  "textContent";
 
     //In order of priority
     public static final String[] SORT_LABELS = {

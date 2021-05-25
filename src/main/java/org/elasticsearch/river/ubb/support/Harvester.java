@@ -32,7 +32,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.elasticsearch.river.ubb.settings.RiverUtils.getTimeString;
+import static org.elasticsearch.river.ubb.settings.RiverUtils.*;
 
 /**
  * @author European Environment Agency (EEA) <br>
@@ -44,6 +44,7 @@ import static org.elasticsearch.river.ubb.settings.RiverUtils.getTimeString;
 public class Harvester implements Runnable {
 
     private final ESLogger logger = Loggers.getLogger(Harvester.class);
+    private final Map<String, String> normalizeProp = new HashMap<>();
     private Boolean indexAll = true;
     private String startTime;
     private Set<String> rdfUrls;
@@ -60,7 +61,6 @@ public class Harvester implements Runnable {
     private boolean isAutoSuggestionEnabled = true;
     private boolean lowerCaseSuggestInput = true;
     private Boolean removeIllegalCharsForSuggestion = true;
-    private Map<String, String> normalizeProp = new HashMap<>();
     private Map<String, String> normalizeObj;
     private Map<String, String> normalizeMissing;
     private Boolean willNormalizeProp = false;
@@ -1203,7 +1203,7 @@ public class Harvester implements Runnable {
         }
         if (Strings.hasText(queryPath)) {//harvesting from file path
             logger.info("Harvesting from TDB [{}] using query path [{}] for river [{}] " +
-                            "on index [{}] and type [{}]", tdbLocation, queryPath, riverName, indexName, typeName);
+                    "on index [{}] and type [{}]", tdbLocation, queryPath, riverName, indexName, typeName);
             Query queryFromPath = null;
             try {
                 queryFromPath = QueryFactory.read(queryPath);
@@ -1321,7 +1321,7 @@ public class Harvester implements Runnable {
             String lang;
             String currentValue;
             String suggestValue;
-
+            List<Map<String, Object>> innerObject = new ArrayList<>();
             while (niter.hasNext()) {
                 RDFNode node = niter.next();
                 currentValue = getStringForResult(rs, node);
@@ -1330,6 +1330,7 @@ public class Harvester implements Runnable {
                 if (currentValue.isEmpty()) {
                     continue;
                 }
+
                 //If we have to generate label sort
                 if (generateSortLabel) {
                     if (node.isLiteral()) {
@@ -1342,7 +1343,7 @@ public class Harvester implements Runnable {
 
                 //Embed one resource to another using the given property
                 if (node.isResource() && property.equals(embedResourceUsingProperty)) {
-                    if(logger.isDebugEnabled()) {
+                    if (logger.isDebugEnabled()) {
                         logger.info("Embedding resource " + node.asResource().getURI() + " to " + rs);
                     }
                     Resource eResource = node.asResource();
@@ -1362,26 +1363,7 @@ public class Harvester implements Runnable {
 
                 // Read and index contents of a given URL
                 if (Strings.hasText(textField) && property.equals(textField)) {
-                    try {
-                        if(logger.isDebugEnabled()) {
-                            logger.info("Reading URL content from: " + currentValue);
-                        }
-                        String urlContent;
-                        try {
-                            urlContent = FileManager.readAsUTF8(currentValue, 5);
-                        } catch (org.apache.jena.shared.WrappedIOException ex) {
-                            //Retry with CP1252
-                            if (logger.isDebugEnabled()) {
-                                logger.warn("Cannot read {} using UTF-8 due to [{}], retrying with CP1252",
-                                        currentValue, ex.getLocalizedMessage());
-                            }
-                            urlContent = FileManager.readAsCP1252(currentValue);
-                        }
-                        jsonMap.put("textContent", urlContent);
-                    } catch (Exception e) {
-                        logger.error("Cannot read content from {} due to {}", currentValue, e.getLocalizedMessage());
-                        e.printStackTrace();
-                    }
+                    jsonMap.put(Defaults.TEXT_CONTENT_FIELD, FileManager.readUrlContent(currentValue));
                 }
 
                 if (addLanguage) {
@@ -1393,10 +1375,17 @@ public class Harvester implements Runnable {
                     }
                 }
 
+                // Construct inner map if value contains special chars
+                if (RiverUtils.isInnerObject(currentValue)) {
+                    Map<String, Object> innerMap = constructInnerMap(currentValue);
+                    innerObject.add(innerMap);
+                }
+
                 //Add values to suggest field for auto suggestion.
                 if (isAutoSuggestionEnabled) {
                     //Filter the value, such that it should not contain weird characters
                     if (!currentValue.startsWith("http")
+                            && !isInnerObject(currentValue)
                             && currentValue.length() <= maxSuggestInputLength
                             && !currentValue.equalsIgnoreCase("true")
                             && !currentValue.equalsIgnoreCase("false")) {
@@ -1435,10 +1424,26 @@ public class Harvester implements Runnable {
                 } else {
                     results.add(currentValue);
                 }
+
             }
 
             // Do not index empty properties
             if (results.isEmpty()) {
+                continue;
+            }
+
+            // Add inner object for a given property
+            if (!innerObject.isEmpty()) {
+                if (normalizeProp.containsKey(property)) {
+                    property = normalizeProp.get(property);
+                }
+                if (innerObject.size() == 1) { // list with only one object
+                    jsonMap.put(property, innerObject.get(0));
+                } else { // list with more than one objects
+                    jsonMap.put(property, innerObject);
+                }
+                // Skip indexing this property since we already have constructed
+                // inner object with this property as a key
                 continue;
             }
 
@@ -1485,6 +1490,7 @@ public class Harvester implements Runnable {
             suggestMap.put(Defaults.SUGGESTION_INPUT_FIELD, suggestInputs);
             jsonMap.put(Defaults.SUGGESTION_FIELD, suggestMap);
         }
+
 
         return jsonMap;
     }
@@ -1646,7 +1652,7 @@ public class Harvester implements Runnable {
                         entry.getKey(), value.get(0)));
             } else {
                 result.append(String.format("\"%s\" : %s,\n",
-                        entry.getKey(), value.toString()));
+                        entry.getKey(), value));
             }
         }
 
