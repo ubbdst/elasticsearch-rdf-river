@@ -18,7 +18,7 @@
     </organization>
 
     <properties>
-        <elasticsearch.version>1.7.6</elasticsearch.version>
+        <elasticsearch.version>6.8.17</elasticsearch.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
